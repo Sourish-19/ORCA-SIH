@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import * as maplibregl from 'maplibre-gl';
+import { Map, NavigationControl, Popup } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Navigation, AlertTriangle } from 'lucide-react';
 import { MAP_CONFIG } from '../config/map';
@@ -22,28 +22,24 @@ export interface MapViewProps {
   zoom?: number;
 }
 
-// Independent Local Fallback Style Object (CARTO Voyager / OpenStreetMap Raster)
-const CARTO_RASTER_FALLBACK_STYLE: any = {
+// Official OpenStreetMap Raster Tile Style Object
+const OSM_FALLBACK_STYLE: any = {
   version: 8,
   sources: {
-    'carto-voyager': {
+    'osm-basemap': {
       type: 'raster',
       tiles: [
-        'https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-        'https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png',
-        'https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
+        'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
       ],
       tileSize: 256,
-      attribution: '&copy; OpenStreetMap contributors &copy; CARTO'
+      attribution: '&copy; OpenStreetMap contributors'
     }
   },
   layers: [
     {
-      id: 'carto-voyager-layer',
+      id: 'osm-basemap',
       type: 'raster',
-      source: 'carto-voyager',
-      minzoom: 0,
-      maxzoom: 19
+      source: 'osm-basemap'
     }
   ]
 };
@@ -52,11 +48,11 @@ export const MapView: React.FC<MapViewProps> = ({
   isVeto = false,
   selectedZoneId,
   onSelectZone,
-  center = MAP_CONFIG.defaultCenter,
-  zoom = MAP_CONFIG.defaultZoom
+  center = [80.2974, 13.0827],
+  zoom = 8
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const mapInstanceRef = useRef<any>(null);
+  const mapInstanceRef = useRef<Map | null>(null);
   const fallbackAttemptedRef = useRef<boolean>(false);
 
   const [mapStatus, setMapStatus] = useState<'loading' | 'ready' | 'error'>('loading');
@@ -103,7 +99,7 @@ export const MapView: React.FC<MapViewProps> = ({
   };
 
   // Safely attaches all ORCA data layers independently with complete failure isolation
-  const attachOrcaDataLayers = (map: any) => {
+  const attachOrcaDataLayers = (map: Map) => {
     if (!map || !map.isStyleLoaded()) return;
 
     // 1. Landing Centres (Kasimedu Harbour)
@@ -339,9 +335,9 @@ export const MapView: React.FC<MapViewProps> = ({
     // Interactive Layer Popups
     try {
       map.on('click', 'orca-landing-centres-circle', (e: any) => {
-        if (!e.features || !e.features[0] || !maplibregl.Popup) return;
+        if (!e.features || !e.features[0]) return;
         const props = e.features[0].properties;
-        new maplibregl.Popup({ closeButton: true })
+        new Popup({ closeButton: true })
           .setLngLat((e.features[0].geometry as any).coordinates)
           .setHTML(`
             <div style="font-family:sans-serif; padding:4px; color:#0f172a">
@@ -357,10 +353,10 @@ export const MapView: React.FC<MapViewProps> = ({
       });
 
       map.on('click', 'orca-pfz-fill', (e: any) => {
-        if (!e.features || !e.features[0] || !maplibregl.Popup) return;
+        if (!e.features || !e.features[0]) return;
         const props = e.features[0].properties;
         if (onSelectZone) onSelectZone(props);
-        new maplibregl.Popup({ closeButton: true })
+        new Popup({ closeButton: true })
           .setLngLat(e.lngLat)
           .setHTML(`
             <div style="font-family:sans-serif; padding:4px; color:#0f172a">
@@ -378,9 +374,9 @@ export const MapView: React.FC<MapViewProps> = ({
       });
 
       map.on('click', 'orca-vessels-circle', (e: any) => {
-        if (!e.features || !e.features[0] || !maplibregl.Popup) return;
+        if (!e.features || !e.features[0]) return;
         const props = e.features[0].properties;
-        new maplibregl.Popup({ closeButton: true })
+        new Popup({ closeButton: true })
           .setLngLat((e.features[0].geometry as any).coordinates)
           .setHTML(`
             <div style="font-family:sans-serif; padding:4px; color:#0f172a">
@@ -430,19 +426,25 @@ export const MapView: React.FC<MapViewProps> = ({
 
       if (!mapContainerRef.current) return;
 
-      const fallbackMap = new maplibregl.Map({
-        container: mapContainerRef.current,
-        style: CARTO_RASTER_FALLBACK_STYLE,
-        center: center,
-        zoom: zoom,
-        pitch: 0,
-        attributionControl: false
-      });
+      let fallbackMap: Map;
+      try {
+        fallbackMap = new Map({
+          container: mapContainerRef.current,
+          style: OSM_FALLBACK_STYLE,
+          center: center,
+          zoom: zoom,
+          pitch: 0,
+          attributionControl: { compact: true }
+        });
+      } catch (err) {
+        console.error('[ORCA MAP] Fallback map instantiation error:', err);
+        return;
+      }
 
       mapInstanceRef.current = fallbackMap;
-      if (maplibregl.NavigationControl) {
-        fallbackMap.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
-      }
+      try {
+        fallbackMap.addControl(new NavigationControl({ showCompass: true }), 'top-right');
+      } catch (e) {}
 
       fallbackMap.on('load', () => {
         console.log('[ORCA MAP] Fallback basemap loaded');
@@ -467,7 +469,11 @@ export const MapView: React.FC<MapViewProps> = ({
       startFallbackMap();
       return () => {
         resizeObserver.disconnect();
-        if (mapInstanceRef.current) mapInstanceRef.current.remove();
+        if (mapInstanceRef.current) {
+          try {
+            mapInstanceRef.current.remove();
+          } catch (e) {}
+        }
       };
     }
 
@@ -475,10 +481,10 @@ export const MapView: React.FC<MapViewProps> = ({
     const mapTilerUrl = `https://api.maptiler.com/maps/streets-v2/style.json?key=${apiKey}`;
 
     let styleLoaded = false;
-    let map: any;
+    let map: Map;
 
     try {
-      map = new maplibregl.Map({
+      map = new Map({
         container: mapContainerRef.current,
         style: mapTilerUrl,
         center: center,
@@ -495,9 +501,9 @@ export const MapView: React.FC<MapViewProps> = ({
     }
 
     mapInstanceRef.current = map;
-    if (maplibregl.NavigationControl) {
-      map.addControl(new maplibregl.NavigationControl({ showCompass: true }), 'top-right');
-    }
+    try {
+      map.addControl(new NavigationControl({ showCompass: true }), 'top-right');
+    } catch (e) {}
 
     map.on('style.load', () => {
       styleLoaded = true;
@@ -529,7 +535,7 @@ export const MapView: React.FC<MapViewProps> = ({
   }, [isVeto, center, zoom]);
 
   return (
-    <div className="bg-[#0b172a] border border-[#1b2b45] rounded-xl overflow-hidden shadow-2xl flex flex-col h-full min-h-[480px] w-full relative">
+    <div className="bg-[#0b172a] border border-[#1b2b45] rounded-xl overflow-hidden shadow-2xl flex flex-col h-[500px] min-h-[500px] w-full relative">
       
       {/* Top Map Layer Toolbar */}
       <div className="bg-[#070f1e] px-3 py-2 border-b border-[#1b2b45] flex flex-wrap items-center justify-between gap-2 z-10 shrink-0">
