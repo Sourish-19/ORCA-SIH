@@ -46,5 +46,52 @@ export const marineApi = {
   async getHealthStatus() {
     const res = await fetch(`${API_BASE_URL}/api/health`);
     return res.json();
+  },
+
+  /**
+   * Fetches Map API configuration, supported basemaps, and sector definitions.
+   */
+  async getMapConfig() {
+    const res = await fetch(`${API_BASE_URL}/api/map/config`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch map config: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  /**
+   * Fetches all registered coastal sectors and bounding coordinates.
+   */
+  async getMapSectors() {
+    const res = await fetch(`${API_BASE_URL}/api/map/sectors`);
+    if (!res.ok) {
+      throw new Error(`Failed to fetch map sectors: ${res.statusText}`);
+    }
+    return res.json();
+  },
+
+  /**
+   * Synchronizes live GIS GeoJSON layers dynamically from the backend data plane.
+   */
+  async getMapLayers(params?: {
+    location?: string;
+    harbour?: string;
+    is_veto?: boolean;
+    zone_id?: string;
+    query?: string;
+  }) {
+    const url = new URL(`${API_BASE_URL}/api/map/layers`);
+    if (params) {
+      if (params.location) url.searchParams.set('location', params.location);
+      if (params.harbour) url.searchParams.set('harbour', params.harbour);
+      if (params.is_veto !== undefined) url.searchParams.set('is_veto', String(params.is_veto));
+      if (params.zone_id) url.searchParams.set('zone_id', params.zone_id);
+      if (params.query) url.searchParams.set('query', params.query);
+    }
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      throw new Error(`Failed to fetch map layers: ${res.statusText}`);
+    }
+    return res.json();
   }
 };

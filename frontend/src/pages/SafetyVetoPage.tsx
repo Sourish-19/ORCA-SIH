@@ -62,7 +62,14 @@ export const SafetyVetoPage: React.FC<SafetyVetoPageProps> = ({ response }) => {
       </div>
 
       {/* Map with Hazard Bounding Box Overlay */}
-      <MarineMap isVeto={true} />
+      <MarineMap
+        isVeto={true}
+        location="Visakhapatnam"
+        query="Severe Cyclone Warning Active"
+        center={[83.3032, 17.6974]}
+        zoom={7.5}
+        response={response}
+      />
     </div>
   );
 };

@@ -16,6 +16,7 @@ from app.models.request import UserQueryRequest, ORCAResponse
 from app.agents.orchestrator import run_orca_pipeline
 from app.ingestion.incois import fetch_landing_centres
 from app.routers.recommend import router as recommend_router
+from app.routers.map import router as map_router
 
 app = FastAPI(
     title="ORCA Backend Engine — SIH26176",
@@ -35,6 +36,7 @@ app.add_middleware(
 # Stack B pipeline: POST /api/recommend, GET /api/recommend/demo
 # (the legacy POST /api/query below is left untouched)
 app.include_router(recommend_router)
+app.include_router(map_router)
 
 
 @app.get("/")

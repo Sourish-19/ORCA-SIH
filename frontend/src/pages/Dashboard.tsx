@@ -16,18 +16,44 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, isLoading }) => {
   const [queryInput, setQueryInput] = useState('Where should I fish tomorrow near Chennai?');
   const [activePreset, setActivePreset] = useState<'scenario_01' | 'scenario_02' | 'scenario_03'>('scenario_01');
+  const [selectedZone, setSelectedZone] = useState<any>(null);
 
   const isVeto = response?.safety?.veto_triggered || activePreset === 'scenario_02';
+
+  const activeLocation = React.useMemo(() => {
+    if (activePreset === 'scenario_02') return 'Visakhapatnam';
+    if (activePreset === 'scenario_03') return 'Kochi';
+    return response?.intent?.location_name || 'Chennai';
+  }, [activePreset, response?.intent?.location_name]);
+
+  const mapCenter: [number, number] = React.useMemo(() => {
+    if (activePreset === 'scenario_02') return [83.3032, 17.6974];
+    if (activePreset === 'scenario_03') return [76.1683, 10.1812];
+    if (response?.top_recommendation?.center_lon && response?.top_recommendation?.center_lat) {
+      return [response.top_recommendation.center_lon, response.top_recommendation.center_lat];
+    }
+    return [80.2974, 13.0827];
+  }, [response?.top_recommendation, activePreset]);
+
+  const mapZoom = activePreset === 'scenario_02' ? 7.5 : 8.5;
 
   const handleExecute = (e: React.FormEvent) => {
     e.preventDefault();
     if (queryInput.trim()) {
+      setSelectedZone(null);
+      const lower = queryInput.toLowerCase();
+      if (lower.includes('vizag') || lower.includes('cyclone')) {
+        setActivePreset('scenario_02');
+      } else if (lower.includes('kochi') || lower.includes('munambam')) {
+        setActivePreset('scenario_03');
+      }
       onQuerySubmit(queryInput.trim());
     }
   };
 
   const handleSelectPreset = (id: 'scenario_01' | 'scenario_02' | 'scenario_03', q: string) => {
     setActivePreset(id);
+    setSelectedZone(null);
     setQueryInput(q);
     onQuerySubmit(q);
   };
@@ -65,7 +91,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
           </button>
 
           <button
-            onClick={() => handleSelectPreset('scenario_03', 'நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?')}
+            onClick={() => handleSelectPreset('scenario_03', 'Kochi nallu meen enga kedaikkum?')}
             className={`px-3 py-1.5 rounded-md text-xs font-bold font-mono transition uppercase ${
               activePreset === 'scenario_03'
                 ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/30 border border-teal-400'
@@ -103,7 +129,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
               <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => handleSelectPreset('scenario_03', 'நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?')}
+                  onClick={() => handleSelectPreset('scenario_03', 'Kochi nallu meen enga kedaikkum?')}
                   className="p-2 rounded-lg bg-[#060c16] text-slate-400 hover:text-cyan-400 border border-[#1c2838] transition"
                 >
                   <Mic className="w-4 h-4" />
@@ -127,7 +153,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
         {/* Column 2 (Center 6-Cols): Interactive Ocean GIS Map with deck.gl + MapLibre */}
         <div className="lg:col-span-6 space-y-3">
           <div className="h-[520px]">
-            <MarineMap isVeto={isVeto} />
+            <MarineMap
+              isVeto={isVeto}
+              center={mapCenter}
+              zoom={mapZoom}
+              response={response}
+              location={activeLocation}
+              query={queryInput}
+              selectedZone={selectedZone}
+              onSelectZone={setSelectedZone}
+            />
           </div>
           <OceanTelemetryChart />
         </div>
@@ -135,8 +170,38 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
         {/* Column 3 (Right 3-Cols): Recommended Zone, Suitability Ring & Key Ocean Drivers */}
         <div className="lg:col-span-3 space-y-3">
           <SuitabilityDonut
-            breakdown={response?.suitability_breakdown}
-            recommendation={response?.top_recommendation}
+            breakdown={
+              selectedZone
+                ? {
+                    zone_id: selectedZone.zone_id || 'zone_selected',
+                    total_score: Number(selectedZone.score) || 88,
+                    pfz_contribution: 50,
+                    chlorophyll_contribution: 20,
+                    sst_contribution: 12,
+                    accessibility_contribution: 6,
+                    formula_explanation: 'OSI = PFZ baseline (50) + Chlorophyll (20) + SST (12) + Access (6)'
+                  }
+                : response?.suitability_breakdown
+            }
+            recommendation={
+              selectedZone
+                ? {
+                    zone_id: selectedZone.zone_id || 'zone_selected',
+                    sector_name: selectedZone.sector_name || 'Selected Sector',
+                    center_lat: 0,
+                    center_lon: 0,
+                    depth_m: Number(selectedZone.depth_m) || 35,
+                    bearing_deg: Number(selectedZone.bearing_deg) || 87,
+                    distance_km: Number(selectedZone.distance_km) || 12,
+                    nearest_landing_centre: selectedZone.nearest_landing_centre || 'Harbour',
+                    valid_from: new Date().toISOString(),
+                    valid_until: new Date(Date.now() + 86400000).toISOString(),
+                    strength_score: Number(selectedZone.score) || 88,
+                    source: selectedZone.source || 'INCOIS',
+                    fetched_at: new Date().toISOString()
+                  }
+                : response?.top_recommendation
+            }
             isVeto={isVeto}
           />
 

@@ -68,7 +68,7 @@ export const FleetOverviewPage: React.FC = () => {
         </div>
 
         <div className="flex-1">
-          <MarineMap />
+          <MarineMap location="Chennai" query="Fleet Telemetry Kasimedu Harbour" />
         </div>
       </div>
 

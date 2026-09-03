@@ -26,6 +26,10 @@ DEBUG = os.getenv("DEBUG", "True").lower() == "true"
 # Data plane settings
 DATA_MODE = os.getenv("ORCA_DATA_MODE", "DEMO")  # "LIVE", "FAILOVER", "DEMO"
 
+# Map Basemap & GIS API Keys
+MAPTILER_API_KEY = os.getenv("MAPTILER_API_KEY", "")
+CARTO_API_KEY = os.getenv("CARTO_API_KEY", "")
+
 # Safety Thresholds
 MAX_SAFE_WIND_KNOTS = float(os.getenv("MAX_SAFE_WIND_KNOTS", "25.0"))
 MAX_SAFE_WAVE_M = float(os.getenv("MAX_SAFE_WAVE_M", "2.5"))
