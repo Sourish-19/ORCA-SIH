@@ -138,8 +138,9 @@ const OSM_STYLE: any = {
 };
 
 function getStyleForMode(mode: BasemapMode): any {
+  const forceFallback = import.meta.env.VITE_FORCE_FALLBACK_MAP === 'true';
   const maptilerKey = import.meta.env.VITE_MAPTILER_API_KEY;
-  if (maptilerKey && maptilerKey.length > 5) {
+  if (!forceFallback && maptilerKey && maptilerKey.length > 5 && maptilerKey !== 'tS81bxNfsCkR3LhnRl99') {
     if (mode === 'dark') return `https://api.maptiler.com/maps/dataviz-dark/style.json?key=${maptilerKey}`;
     if (mode === 'ocean') return `https://api.maptiler.com/maps/ocean/style.json?key=${maptilerKey}`;
     if (mode === 'satellite') return `https://api.maptiler.com/maps/satellite/style.json?key=${maptilerKey}`;
@@ -642,6 +643,7 @@ export const MapView: React.FC<MapViewProps> = ({
     if (!mapContainerRef.current) return;
 
     const initialStyle = getStyleForMode('dark');
+    let fallbackTriggered = false;
 
     let map: Map;
     try {
@@ -672,12 +674,25 @@ export const MapView: React.FC<MapViewProps> = ({
       syncLayersFromBackend(map);
     };
 
+    const triggerFallback = () => {
+      if (fallbackTriggered) return;
+      fallbackTriggered = true;
+      console.warn('[ORCA MAP] Remote MapTiler style failed to load. Falling back to ESRI Dark GIS raster basemap.');
+      try {
+        map.setStyle(DARK_STYLE);
+      } catch (e) {
+        console.error('[ORCA MAP] Fallback setStyle error:', e);
+      }
+    };
+
     map.once('load', () => {
       setupInteractionHandlers(map);
       onStyleReady();
     });
 
     map.on('style.load', () => {
+      setMapStatus('ready');
+      map.resize();
       if (map.isStyleLoaded()) {
         attachOrcaDataLayers(map);
         if (cachedBackendLayersRef.current) {
@@ -685,6 +700,22 @@ export const MapView: React.FC<MapViewProps> = ({
         }
       }
     });
+
+    map.on('error', (e: any) => {
+      const msg = e?.error?.message || e?.message || '';
+      if (!map.isStyleLoaded() && !fallbackTriggered) {
+        console.warn('[ORCA MAP] MapLibre style load error:', msg);
+        triggerFallback();
+      }
+    });
+
+    // Safety timeout: If map style hasn't loaded in 1.5s, trigger fallback directly
+    const loadTimeout = setTimeout(() => {
+      if (!map.isStyleLoaded() && !fallbackTriggered) {
+        console.warn('[ORCA MAP] Map load timeout (1.5s). Triggering ESRI Dark raster fallback.');
+        triggerFallback();
+      }
+    }, 1500);
 
     const timer = setTimeout(() => {
       if (map) map.resize();
@@ -700,6 +731,7 @@ export const MapView: React.FC<MapViewProps> = ({
     }
 
     return () => {
+      clearTimeout(loadTimeout);
       clearTimeout(timer);
       resizeObserver.disconnect();
       if (mapInstanceRef.current) {
