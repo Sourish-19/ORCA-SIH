@@ -37,6 +37,30 @@ from app.models.suitability import (
     SuitabilityAssessment
 )
 
+from app.models.safety import (
+    SafetyConfig,
+    SafetyFinding,
+    SafetyVerdict
+)
+
+from app.models.decision import (
+    DecisionConfig,
+    LocationDecision,
+    DecisionResult
+)
+
+from app.models.explanation import (
+    LLMExplainerConfig,
+    DecisionExplanation
+)
+
+from app.models.api import (
+    DEFAULT_QUERY,
+    RecommendationRequest,
+    StageTimings,
+    RecommendationResponse
+)
+
 from app.models.trace import (
     EvidenceRecord,
     AgentStepTrace
@@ -65,6 +89,18 @@ __all__ = [
     "SuitabilityConfig",
     "ComponentEvidence",
     "SuitabilityAssessment",
+    "SafetyConfig",
+    "SafetyFinding",
+    "SafetyVerdict",
+    "DecisionConfig",
+    "LocationDecision",
+    "DecisionResult",
+    "LLMExplainerConfig",
+    "DecisionExplanation",
+    "DEFAULT_QUERY",
+    "RecommendationRequest",
+    "StageTimings",
+    "RecommendationResponse",
     "GeoLocation",
     "LandingCentre",
     "PFZCandidateZone",

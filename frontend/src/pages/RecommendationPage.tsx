@@ -45,15 +45,14 @@ export const RecommendationPage: React.FC<RecommendationPageProps> = ({ response
         <SuitabilityDonut
           breakdown={response?.suitability_breakdown || {
             zone_id: 'pfz_01',
-            total_score: 88,
-            pfz_contribution: 29.75,
-            chlorophyll_contribution: 23.75,
-            sst_contribution: 14.25,
-            wind_contribution: 9.5,
-            wave_contribution: 9.5,
-            accessibility_contribution: 4.25,
-            formula_explanation: 'Suitability = 0.35·PFZ + 0.25·CHL + 0.15·SST + 0.10·Wind + 0.10·Wave + 0.05·Access'
+            total_score: 84,
+            pfz_contribution: 50,
+            chlorophyll_contribution: 15,
+            sst_contribution: 15,
+            accessibility_contribution: 4,
+            formula_explanation: 'OSI = PFZ baseline (50) + Chlorophyll (0-25) + SST (0-15) + Accessibility (0-10)'
           }}
+          recommendation={response?.top_recommendation}
           isVeto={isVeto}
         />
 

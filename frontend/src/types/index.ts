@@ -92,8 +92,10 @@ export interface SuitabilityBreakdown {
   pfz_contribution: number;
   chlorophyll_contribution: number;
   sst_contribution: number;
-  wind_contribution: number;
-  wave_contribution: number;
+  // The ORCA Suitability Index is safety-isolated: it computes no wind/wave term.
+  // These stay optional for the legacy Stack A shape; the /api/recommend adapter omits them.
+  wind_contribution?: number;
+  wave_contribution?: number;
   accessibility_contribution: number;
   formula_explanation: string;
 }

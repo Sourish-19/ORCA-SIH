@@ -19,6 +19,7 @@ from app.models.suitability import (
     ComponentEvidence,
     SuitabilityAssessment
 )
+from app.services._identity import make_candidate_id
 
 
 def evaluate_evidence_bundle(
@@ -203,7 +204,7 @@ def evaluate_evidence_bundle(
         distance_km=d_avg
     )
 
-    candidate_id = f"PFZ-{bundle.pfz.sector_id}-{bundle.pfz.landing_centre}-{int(bundle.pfz.bearing_deg)}deg"
+    candidate_id = make_candidate_id(bundle.pfz)
 
     return SuitabilityAssessment(
         candidate_id=candidate_id,

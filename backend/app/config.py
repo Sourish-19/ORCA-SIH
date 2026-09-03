@@ -5,10 +5,18 @@ System Configuration & Environment Variables
 import os
 from pathlib import Path
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 PROJECT_ROOT = BASE_DIR.parent
 DATA_DIR = PROJECT_ROOT / "data"
 DEMO_DATA_DIR = DATA_DIR / "demo"
+
+# Load .env if present; real environment variables always take precedence, and
+# an already-set var is never overridden, so backend/.env wins over the repo-root
+# .env when both define the same key.
+load_dotenv(BASE_DIR / ".env")          # backend/.env  (documented location)
+load_dotenv(PROJECT_ROOT / ".env")      # repo-root .env (fallback)
 
 # Server configuration
 HOST = os.getenv("HOST", "0.0.0.0")
@@ -30,3 +38,18 @@ WEIGHT_SST = 0.15
 WEIGHT_WIND = 0.10
 WEIGHT_WAVE = 0.10
 WEIGHT_ACCESSIBILITY = 0.05
+
+# =====================================================================
+# LLM Explainer (Google Gemini - free tier; narration only, never scoring)
+# =====================================================================
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+# "gemini-flash-latest" is a stable alias Google keeps pointed at the current free
+# Flash model; pin a specific id (e.g. "gemini-3.6-flash") only if you need it.
+ORCA_LLM_MODEL = os.getenv("ORCA_LLM_MODEL", "gemini-flash-latest")
+# "auto" -> enabled iff GEMINI_API_KEY is set; "off" -> always use the template fallback;
+# "on" -> attempt the LLM even if the key looks unset (will fall back on failure).
+ORCA_LLM_ENABLED = os.getenv("ORCA_LLM_ENABLED", "auto")
+ORCA_LLM_TIMEOUT_SECONDS = float(os.getenv("ORCA_LLM_TIMEOUT_SECONDS", "12.0"))
+# Generous headroom: "thinking" Flash models spend part of this budget before the
+# visible answer, and Tamil output is token-dense.
+ORCA_LLM_MAX_OUTPUT_TOKENS = int(os.getenv("ORCA_LLM_MAX_OUTPUT_TOKENS", "800"))

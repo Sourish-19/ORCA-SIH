@@ -17,6 +17,7 @@ import { TamilVoicePage } from './pages/TamilVoicePage';
 import { FleetOverviewPage } from './pages/FleetOverviewPage';
 
 import { PersonaMode, DataMode, DemoScenario, ORCAResponse } from './types';
+import { marineApi } from './services/api/marineApi';
 
 export function App() {
   const [persona, setPersona] = useState<PersonaMode>('analyst');
@@ -43,16 +44,9 @@ export function App() {
   const handleRunQuery = async (queryText: string) => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/query', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: queryText })
-      });
-
-      if (res.ok) {
-        const data: ORCAResponse = await res.json();
-        setCurrentResponse(data);
-      }
+      // POST /api/recommend (Stack B) adapted into the ORCAResponse shape.
+      const data: ORCAResponse = await marineApi.processQuery(queryText);
+      setCurrentResponse(data);
     } catch (err) {
       console.error('Query failed', err);
     } finally {
@@ -74,7 +68,7 @@ export function App() {
               <AppShell
                 persona={persona}
                 onPersonaChange={setPersona}
-                dataMode="LIVE"
+                dataMode={(currentResponse?.data_mode as DataMode) || 'CACHED'}
                 location={currentScenario?.location || 'Chennai • Bay of Bengal'}
                 selectedScenarioTitle={currentScenario?.title}
                 onOpenScenarios={() => window.location.href = '/demo-scenarios'}
