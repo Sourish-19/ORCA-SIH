@@ -152,7 +152,7 @@ function getStyleForMode(mode: BasemapMode): any {
   return DARK_STYLE;
 }
 
-const DEFAULT_CENTER: [number, number] = [80.2974, 13.0827]; // Chennai Offshore
+const DEFAULT_CENTER: [number, number] = [80.3800, 13.1500]; // Chennai Maritime Sector (Harbour + Offshore PFZ)
 const DEFAULT_ZOOM = 8.5;
 
 export const MapView: React.FC<MapViewProps> = ({

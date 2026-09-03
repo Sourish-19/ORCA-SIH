@@ -1,5 +1,6 @@
 {
   "sst_observations": [
+    {"timestamp": "2026-08-30T06:00:00Z", "latitude": 13.1500, "longitude": 80.3800, "sst_celsius": 28.4, "quality_flag": "GOOD", "source": "MOSDAC Satellite SST"},
     {"timestamp": "2026-08-30T06:00:00Z", "latitude": 13.1850, "longitude": 80.6210, "sst_celsius": 28.4, "quality_flag": "GOOD", "source": "MOSDAC Satellite SST"},
     {"timestamp": "2026-08-30T06:00:00Z", "latitude": 12.6120, "longitude": 80.4510, "sst_celsius": 28.9, "quality_flag": "GOOD", "source": "MOSDAC Satellite SST"},
     {"timestamp": "2026-08-30T06:00:00Z", "latitude": 10.2110, "longitude": 75.8540, "sst_celsius": 27.8, "quality_flag": "GOOD", "source": "MOSDAC Satellite SST"},
@@ -7,6 +8,7 @@
     {"timestamp": "2026-08-30T06:00:00Z", "latitude": 17.5200, "longitude": 83.5800, "sst_celsius": 29.0, "quality_flag": "GOOD", "source": "MOSDAC Satellite SST"}
   ],
   "chlorophyll_observations": [
+    {"timestamp": "2026-08-30T06:00:00Z", "latitude": 13.1500, "longitude": 80.3800, "concentration_mg_m3": 1.85, "quality_flag": "GOOD", "source": "MOSDAC Ocean Colour"},
     {"timestamp": "2026-08-30T06:00:00Z", "latitude": 13.1850, "longitude": 80.6210, "concentration_mg_m3": 1.45, "quality_flag": "GOOD", "source": "MOSDAC Ocean Colour"},
     {"timestamp": "2026-08-30T06:00:00Z", "latitude": 12.6120, "longitude": 80.4510, "concentration_mg_m3": 0.95, "quality_flag": "GOOD", "source": "MOSDAC Ocean Colour"},
     {"timestamp": "2026-08-30T06:00:00Z", "latitude": 10.2110, "longitude": 75.8540, "concentration_mg_m3": 2.10, "quality_flag": "GOOD", "source": "MOSDAC Ocean Colour"},
