@@ -152,7 +152,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
 
         {/* Column 2 (Center 6-Cols): Interactive Ocean GIS Map with deck.gl + MapLibre */}
         <div className="lg:col-span-6 space-y-3">
-          <div className="h-[520px]">
+          <div className="h-[570px]">
             <MarineMap
               isVeto={isVeto}
               center={mapCenter}

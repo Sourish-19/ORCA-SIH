@@ -828,15 +828,15 @@ export const MapView: React.FC<MapViewProps> = ({
   };
 
   return (
-    <div className="bg-[#0b172a] border border-[#1b2b45] rounded-xl overflow-hidden shadow-2xl flex flex-col h-[520px] min-h-[520px] w-full relative">
+    <div className="bg-[#0b172a] border border-[#1b2b45] rounded-xl overflow-hidden shadow-2xl flex flex-col h-full min-h-[570px] w-full relative">
       
-      {/* Top Map Layer & Basemap Toolbar (Two Distinct Control Rows) */}
-      <div className="bg-[#070f1e] px-3 py-2 border-b border-[#1b2b45] flex flex-col gap-2 z-10 shrink-0">
+      {/* Top Map Header (Two Distinct Control Rows - Occupies Real Layout Space Above Map Canvas) */}
+      <div className="bg-[#070f1e] p-3 border-b border-[#1b2b45] flex flex-col gap-2.5 z-20 shrink-0">
         
-        {/* Row 1 — Title, Backend Sync & Basemap Styles (Aligned Right) */}
+        {/* Row 1 — Map Title & Basemap Controls (Aligned Right) */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           
-          {/* Left: GIS Engine Title & Backend Sync Status */}
+          {/* Map Title Row & GIS Sync Status */}
           <div className="flex items-center gap-2">
             <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5 font-mono">
               <Navigation className="w-3.5 h-3.5 text-cyan-400" />
@@ -865,7 +865,7 @@ export const MapView: React.FC<MapViewProps> = ({
             </div>
           </div>
 
-          {/* Right: Basemap Switcher Chips (Row 1 Top-Right) */}
+          {/* Basemap Controls (DARK, OCEAN, SATELLITE, COASTAL) */}
           <div className="flex items-center gap-1 text-[10px] font-mono">
             <button
               onClick={() => handleBasemapChange('dark')}
@@ -921,8 +921,8 @@ export const MapView: React.FC<MapViewProps> = ({
           </div>
         </div>
 
-        {/* Row 2 — Marine Data Layer Toggles (Directly Underneath, Aligned Left) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#1b2b45]/60 pt-1.5">
+        {/* Row 2 — Marine Layer Controls (PFZ, SST, CHL, WIND, HAZARDS, VESSELS, ROUTE, RECENTER) */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#1b2b45]/60 pt-2">
           <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
             <button
               onClick={() => toggleLayer('pfz')}
@@ -1013,14 +1013,13 @@ export const MapView: React.FC<MapViewProps> = ({
         </div>
       </div>
 
-      {/* Main MapLibre GL Rendering Viewport */}
-      <div className="relative flex-1 bg-[#040a16] overflow-hidden min-h-[460px] w-full h-full">
+      {/* Main MapLibre GL Rendering Viewport (Starts Strictly Below MapHeader) */}
+      <div className="relative flex-1 bg-[#040a16] overflow-hidden min-h-0 w-full h-full">
         
         {/* Real MapLibre GL DOM Container */}
         <div
           ref={mapContainerRef}
-          className="w-full h-full min-h-[460px]"
-          style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+          className="absolute inset-0 w-full h-full"
         />
 
         {/* Loading Indicator Overlay */}
