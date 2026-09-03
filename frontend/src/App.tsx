@@ -27,8 +27,7 @@ export function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    fetch('/api/demo-scenarios')
-      .then((res) => res.json())
+    marineApi.getDemoScenarios()
       .then((data) => {
         setScenarios(data);
         if (data && data.length > 0) {
