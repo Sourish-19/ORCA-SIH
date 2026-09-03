@@ -24,5 +24,18 @@
     "valid_until": "2026-08-31T18:00:00Z",
     "source": "INCOIS High Wave Warning",
     "issued_at": "2026-08-30T06:00:00Z"
+  },
+  {
+    "warning_id": "warn_chn_003",
+    "warning_type": "ROUGH_SEA",
+    "severity": "ORANGE",
+    "title": "Rough Sea & Wind Advisory - Chennai Offshore",
+    "description": "Squally weather with wind speed 20-30 knots along Chennai coast.",
+    "affected_sector": "Chennai Coastal Waters",
+    "bounding_box": [12.8, 80.3, 13.5, 80.8],
+    "valid_from": "2026-08-30T00:00:00Z",
+    "valid_until": "2026-09-01T12:00:00Z",
+    "source": "IMD Marine Warning Centre",
+    "issued_at": "2026-08-30T05:00:00Z"
   }
 ]

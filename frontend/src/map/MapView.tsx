@@ -329,7 +329,7 @@ export const MapView: React.FC<MapViewProps> = ({
       } catch (e) {}
     }
 
-    // 2. INCOIS PFZ Advisories (Polygons & Points)
+    // 2. INCOIS PFZ Advisories (Polygons, Concentric Outer Ring & Centroid Points)
     setOrCreateSource('orca-pfz-polygons-src', pfzPolyData);
     setOrCreateSource('orca-pfz-points-src', pfzPointData);
 
@@ -367,6 +367,24 @@ export const MapView: React.FC<MapViewProps> = ({
       } catch (e) {}
     }
 
+    if (!map.getLayer('orca-pfz-outer-ring')) {
+      try {
+        map.addLayer({
+          id: 'orca-pfz-outer-ring',
+          type: 'line',
+          source: 'orca-pfz-polygons-src',
+          layout: {
+            visibility: currentVis.pfz ? 'visible' : 'none'
+          },
+          paint: {
+            'line-color': '#f59e0b',
+            'line-width': 3.5,
+            'line-dasharray': [2, 2]
+          }
+        });
+      } catch (e) {}
+    }
+
     if (!map.getLayer('orca-pfz-points')) {
       try {
         map.addLayer({
@@ -377,10 +395,10 @@ export const MapView: React.FC<MapViewProps> = ({
             visibility: currentVis.pfz ? 'visible' : 'none'
           },
           paint: {
-            'circle-radius': 7,
-            'circle-color': '#10b981',
-            'circle-stroke-width': 2,
-            'circle-stroke-color': '#ffffff'
+            'circle-radius': 8,
+            'circle-color': '#0ea5e9',
+            'circle-stroke-width': 2.5,
+            'circle-stroke-color': '#000000'
           }
         });
       } catch (e) {}
@@ -423,7 +441,7 @@ export const MapView: React.FC<MapViewProps> = ({
       } catch (e) {}
     }
 
-    // 4. IMD Marine Weather
+    // 4. IMD Marine Weather (Wind Vector Arrows & Observation Markers)
     setOrCreateSource('orca-weather-src', weatherData);
     if (!map.getLayer('orca-weather-circle')) {
       try {
@@ -439,6 +457,26 @@ export const MapView: React.FC<MapViewProps> = ({
             'circle-color': '#38bdf8',
             'circle-stroke-width': 2,
             'circle-stroke-color': '#ffffff'
+          }
+        });
+      } catch (e) {}
+    }
+
+    if (!map.getLayer('orca-weather-arrow')) {
+      try {
+        map.addLayer({
+          id: 'orca-weather-arrow',
+          type: 'symbol',
+          source: 'orca-weather-src',
+          layout: {
+            visibility: currentVis.wind ? 'visible' : 'none',
+            'text-field': '➔',
+            'text-size': 18,
+            'text-rotate': ['get', 'wind_direction_deg'],
+            'text-allow-overlap': true
+          },
+          paint: {
+            'text-color': '#0284c7'
           }
         });
       } catch (e) {}
@@ -496,7 +534,7 @@ export const MapView: React.FC<MapViewProps> = ({
             'circle-radius': 7,
             'circle-color': '#0ea5e9',
             'circle-stroke-width': 2.5,
-            'circle-stroke-color': '#ffffff'
+            'circle-stroke-color': '#000000'
           }
         });
       } catch (e) {}
@@ -530,9 +568,11 @@ export const MapView: React.FC<MapViewProps> = ({
       'orca-hazard-line',
       'orca-pfz-fill',
       'orca-pfz-line',
+      'orca-pfz-outer-ring',
       'orca-pfz-points',
       'orca-route-line',
       'orca-weather-circle',
+      'orca-weather-arrow',
       'orca-vessels-circle',
       'orca-landing-centres-circle'
     ];
