@@ -152,8 +152,8 @@ function getStyleForMode(mode: BasemapMode): any {
   return DARK_STYLE;
 }
 
-const DEFAULT_CENTER: [number, number] = [80.3800, 13.1500]; // Chennai Maritime Sector (Harbour + Offshore PFZ)
-const DEFAULT_ZOOM = 8.5;
+const DEFAULT_CENTER: [number, number] = [80.4700, 13.1200]; // Chennai Sector (Kasimedu + PFZ #12A)
+const DEFAULT_ZOOM = 8.8;
 
 export const MapView: React.FC<MapViewProps> = ({
   isVeto = false,
@@ -169,9 +169,9 @@ export const MapView: React.FC<MapViewProps> = ({
   const mapInstanceRef = useRef<Map | null>(null);
 
   const [mapStatus, setMapStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [activeBasemap, setActiveBasemap] = useState<BasemapMode>('dark');
+  const [activeBasemap, setActiveBasemap] = useState<BasemapMode>('streets');
   const [backendSyncStatus, setBackendSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('syncing');
-  const [activeSectorTitle, setActiveSectorTitle] = useState<string>('Chennai Offshore East');
+  const [activeSectorTitle, setActiveSectorTitle] = useState<string>('Chennai Offshore East Sector');
   const [backendMapConfig, setBackendMapConfig] = useState<any>(null);
 
   const cachedBackendLayersRef = useRef<any>(null);
@@ -837,7 +837,7 @@ export const MapView: React.FC<MapViewProps> = ({
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5 font-mono">
             <Navigation className="w-3.5 h-3.5 text-cyan-400" />
-            <span>GIS Marine Engine</span>
+            <span>Bay of Bengal GIS Engine — MapLibre GL</span>
           </span>
 
           <div className="h-4 w-px bg-[#1b2b45] mx-0.5"></div>
@@ -1049,25 +1049,25 @@ export const MapView: React.FC<MapViewProps> = ({
         {/* Map Legend Footer */}
         {mapStatus === 'ready' && (
           <div className="absolute bottom-3 right-3 z-20 bg-[#070f1e]/90 border border-[#1b2b45] px-3 py-1.5 rounded-md text-[10px] text-slate-300 flex items-center gap-3 backdrop-blur-xs font-mono shadow-lg">
-            <div className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded bg-emerald-400"></span>
-              <span>PFZ Advisory</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+              <span>PFZ Zone #12A</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded bg-cyan-400"></span>
-              <span>Harbour</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
+              <span>Kasimedu Harbour</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded bg-sky-400"></span>
-              <span>AIS Vessel</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+              <span>Vessels</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="w-2.5 h-2.5 rounded bg-amber-400"></span>
-              <span>SST Thermal</span>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+              <span>SST Grid</span>
             </div>
             {isVeto && (
-              <div className="flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded bg-red-500 animate-pulse"></span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
                 <span className="text-red-300">Hazard</span>
               </div>
             )}

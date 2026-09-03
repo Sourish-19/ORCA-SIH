@@ -36,11 +36,11 @@ SECTOR_PRESETS: Dict[str, Dict[str, Any]] = {
     "chennai": {
         "sector_id": "chennai",
         "name": "Chennai Offshore East Sector",
-        "center": [80.4200, 13.1500],
-        "zoom": 8.5,
+        "center": [80.4600, 13.1200],
+        "zoom": 8.8,
         "primary_harbour": "Royapuram Fishing Harbour (Kasimedu)",
         "harbour_coords": [80.2974, 13.1258],
-        "target_zone": [80.4200, 13.1500],
+        "target_zone": [80.6210, 13.1850],
         "zone_name": "Chennai Offshore East (PFZ #101)",
         "state": "Tamil Nadu",
         "status": "CLEAR_FISHING_ACTIVE"
