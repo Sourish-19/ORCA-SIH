@@ -272,58 +272,69 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [location, targetLon, isVeto, query, selectedZoneId, updateMapSourcesWithData]);
 
-  // Helper to safely register sources and layers without duplicate collision
+  // Helper to safely register or update sources and layers without collision
   const attachOrcaDataLayers = useCallback((map: Map) => {
-    if (!map || !map.isStyleLoaded()) return;
+    if (!map) return;
 
     const currentVis = layerVisibilityRef.current;
     const backendData = cachedBackendLayersRef.current;
 
-    // 1. Landing Centres (Harbours)
-    try {
-      if (!map.getSource('orca-landing-centres-src')) {
-        map.addSource('orca-landing-centres-src', {
-          type: 'geojson',
-          data: (backendData?.landing_centres || getLandingCentresGeoJSON()) as any
-        });
+    const landingData = backendData?.landing_centres || getLandingCentresGeoJSON();
+    const pfzFallback = getPFZAdvisoriesGeoJSON();
+    const pfzPolyData = backendData?.pfz_polygons || pfzFallback.polygons;
+    const pfzPointData = backendData?.pfz_points || pfzFallback.points;
+    const oceanFallback = getOceanGridsGeoJSON();
+    const sstData = backendData?.sst || oceanFallback.sst;
+    const chlData = backendData?.chl || oceanFallback.chl;
+    const weatherData = backendData?.weather || getMarineWeatherGeoJSON();
+    const hazardData = backendData?.hazards || getHazardWarningsGeoJSON();
+    const vesselData = backendData?.vessels || getVesselsGeoJSON();
+    const routeData = backendData?.route || getRouteGeoJSON();
+
+    // Helper: Add or Update Source
+    const setOrCreateSource = (id: string, data: any) => {
+      try {
+        const existingSrc = map.getSource(id) as any;
+        if (existingSrc && existingSrc.setData) {
+          existingSrc.setData(data);
+        } else if (!existingSrc) {
+          map.addSource(id, {
+            type: 'geojson',
+            data: data as any
+          });
+        }
+      } catch (err) {
+        console.warn(`[ORCA MAP] Error setting source ${id}:`, err);
       }
-      if (!map.getLayer('orca-landing-centres-circle')) {
+    };
+
+    // 1. Landing Centres (Harbours)
+    setOrCreateSource('orca-landing-centres-src', landingData);
+    if (!map.getLayer('orca-landing-centres-circle')) {
+      try {
         map.addLayer({
           id: 'orca-landing-centres-circle',
           type: 'circle',
           source: 'orca-landing-centres-src',
           layout: {
-            visibility: currentVis.ports ? 'visible' : 'none'
+            visibility: currentVis.ports !== false ? 'visible' : 'none'
           },
           paint: {
-            'circle-radius': 8,
+            'circle-radius': 9,
             'circle-color': '#0284c7',
-            'circle-stroke-width': 2.5,
+            'circle-stroke-width': 3,
             'circle-stroke-color': '#ffffff'
           }
         });
-      }
-    } catch (err) {
-      console.warn('[ORCA MAP] Landing centres layer setup warning:', err);
+      } catch (e) {}
     }
 
-    // 2. INCOIS PFZ Advisories
-    try {
-      const pfzFallback = getPFZAdvisoriesGeoJSON();
-      if (!map.getSource('orca-pfz-polygons-src')) {
-        map.addSource('orca-pfz-polygons-src', {
-          type: 'geojson',
-          data: (backendData?.pfz_polygons || pfzFallback.polygons) as any
-        });
-      }
-      if (!map.getSource('orca-pfz-points-src')) {
-        map.addSource('orca-pfz-points-src', {
-          type: 'geojson',
-          data: (backendData?.pfz_points || pfzFallback.points) as any
-        });
-      }
+    // 2. INCOIS PFZ Advisories (Polygons & Points)
+    setOrCreateSource('orca-pfz-polygons-src', pfzPolyData);
+    setOrCreateSource('orca-pfz-points-src', pfzPointData);
 
-      if (!map.getLayer('orca-pfz-fill')) {
+    if (!map.getLayer('orca-pfz-fill')) {
+      try {
         map.addLayer({
           id: 'orca-pfz-fill',
           type: 'fill',
@@ -333,12 +344,14 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'fill-color': '#10b981',
-            'fill-opacity': 0.42
+            'fill-opacity': 0.45
           }
         });
-      }
+      } catch (e) {}
+    }
 
-      if (!map.getLayer('orca-pfz-line')) {
+    if (!map.getLayer('orca-pfz-line')) {
+      try {
         map.addLayer({
           id: 'orca-pfz-line',
           type: 'line',
@@ -348,12 +361,14 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'line-color': '#059669',
-            'line-width': 2.5
+            'line-width': 3
           }
         });
-      }
+      } catch (e) {}
+    }
 
-      if (!map.getLayer('orca-pfz-points')) {
+    if (!map.getLayer('orca-pfz-points')) {
+      try {
         map.addLayer({
           id: 'orca-pfz-points',
           type: 'circle',
@@ -362,27 +377,19 @@ export const MapView: React.FC<MapViewProps> = ({
             visibility: currentVis.pfz ? 'visible' : 'none'
           },
           paint: {
-            'circle-radius': 6,
+            'circle-radius': 7,
             'circle-color': '#10b981',
             'circle-stroke-width': 2,
             'circle-stroke-color': '#ffffff'
           }
         });
-      }
-    } catch (err) {
-      console.warn('[ORCA MAP] PFZ layer setup warning:', err);
+      } catch (e) {}
     }
 
-    // 3. MOSDAC Ocean Observations (SST & Chlorophyll)
-    try {
-      const oceanFallback = getOceanGridsGeoJSON();
-      if (!map.getSource('orca-sst-src')) {
-        map.addSource('orca-sst-src', {
-          type: 'geojson',
-          data: (backendData?.sst || oceanFallback.sst) as any
-        });
-      }
-      if (!map.getLayer('orca-sst-fill')) {
+    // 3. MOSDAC Ocean Observations (SST Thermal & Chlorophyll)
+    setOrCreateSource('orca-sst-src', sstData);
+    if (!map.getLayer('orca-sst-fill')) {
+      try {
         map.addLayer({
           id: 'orca-sst-fill',
           type: 'fill',
@@ -392,18 +399,15 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'fill-color': '#f59e0b',
-            'fill-opacity': 0.22
+            'fill-opacity': 0.35
           }
         });
-      }
+      } catch (e) {}
+    }
 
-      if (!map.getSource('orca-chl-src')) {
-        map.addSource('orca-chl-src', {
-          type: 'geojson',
-          data: (backendData?.chl || oceanFallback.chl) as any
-        });
-      }
-      if (!map.getLayer('orca-chl-fill')) {
+    setOrCreateSource('orca-chl-src', chlData);
+    if (!map.getLayer('orca-chl-fill')) {
+      try {
         map.addLayer({
           id: 'orca-chl-fill',
           type: 'fill',
@@ -413,24 +417,16 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'fill-color': '#06b6d4',
-            'fill-opacity': 0.28
+            'fill-opacity': 0.35
           }
         });
-      }
-    } catch (err) {
-      console.warn('[ORCA MAP] Ocean grids layer setup warning:', err);
+      } catch (e) {}
     }
 
     // 4. IMD Marine Weather
-    try {
-      const weatherFallback = getMarineWeatherGeoJSON();
-      if (!map.getSource('orca-weather-src')) {
-        map.addSource('orca-weather-src', {
-          type: 'geojson',
-          data: (backendData?.weather || weatherFallback) as any
-        });
-      }
-      if (!map.getLayer('orca-weather-circle')) {
+    setOrCreateSource('orca-weather-src', weatherData);
+    if (!map.getLayer('orca-weather-circle')) {
+      try {
         map.addLayer({
           id: 'orca-weather-circle',
           type: 'circle',
@@ -439,27 +435,19 @@ export const MapView: React.FC<MapViewProps> = ({
             visibility: currentVis.wind ? 'visible' : 'none'
           },
           paint: {
-            'circle-radius': 5,
+            'circle-radius': 6,
             'circle-color': '#38bdf8',
-            'circle-stroke-width': 1.5,
+            'circle-stroke-width': 2,
             'circle-stroke-color': '#ffffff'
           }
         });
-      }
-    } catch (err) {
-      console.warn('[ORCA MAP] Weather layer setup warning:', err);
+      } catch (e) {}
     }
 
     // 5. IMD Hazard Warnings
-    try {
-      const hazardFallback = getHazardWarningsGeoJSON();
-      if (!map.getSource('orca-hazard-src')) {
-        map.addSource('orca-hazard-src', {
-          type: 'geojson',
-          data: (backendData?.hazards || hazardFallback) as any
-        });
-      }
-      if (!map.getLayer('orca-hazard-fill')) {
+    setOrCreateSource('orca-hazard-src', hazardData);
+    if (!map.getLayer('orca-hazard-fill')) {
+      try {
         map.addLayer({
           id: 'orca-hazard-fill',
           type: 'fill',
@@ -472,8 +460,11 @@ export const MapView: React.FC<MapViewProps> = ({
             'fill-opacity': isVeto ? 0.48 : 0.25
           }
         });
-      }
-      if (!map.getLayer('orca-hazard-line')) {
+      } catch (e) {}
+    }
+
+    if (!map.getLayer('orca-hazard-line')) {
+      try {
         map.addLayer({
           id: 'orca-hazard-line',
           type: 'line',
@@ -483,25 +474,17 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'line-color': '#ef4444',
-            'line-width': 2.5,
+            'line-width': 3,
             'line-dasharray': [4, 3]
           }
         });
-      }
-    } catch (err) {
-      console.warn('[ORCA MAP] Hazard layer setup warning:', err);
+      } catch (e) {}
     }
 
     // 6. Active AIS Vessels
-    try {
-      const vesselFallback = getVesselsGeoJSON();
-      if (!map.getSource('orca-vessels-src')) {
-        map.addSource('orca-vessels-src', {
-          type: 'geojson',
-          data: (backendData?.vessels || vesselFallback) as any
-        });
-      }
-      if (!map.getLayer('orca-vessels-circle')) {
+    setOrCreateSource('orca-vessels-src', vesselData);
+    if (!map.getLayer('orca-vessels-circle')) {
+      try {
         map.addLayer({
           id: 'orca-vessels-circle',
           type: 'circle',
@@ -510,27 +493,19 @@ export const MapView: React.FC<MapViewProps> = ({
             visibility: currentVis.vessels ? 'visible' : 'none'
           },
           paint: {
-            'circle-radius': 6,
+            'circle-radius': 7,
             'circle-color': '#0ea5e9',
-            'circle-stroke-width': 2,
+            'circle-stroke-width': 2.5,
             'circle-stroke-color': '#ffffff'
           }
         });
-      }
-    } catch (err) {
-      console.warn('[ORCA MAP] Vessels layer setup warning:', err);
+      } catch (e) {}
     }
 
     // 7. Navigation Route
-    try {
-      const routeFallback = getRouteGeoJSON();
-      if (!map.getSource('orca-route-src')) {
-        map.addSource('orca-route-src', {
-          type: 'geojson',
-          data: (backendData?.route || routeFallback) as any
-        });
-      }
-      if (!map.getLayer('orca-route-line')) {
+    setOrCreateSource('orca-route-src', routeData);
+    if (!map.getLayer('orca-route-line')) {
+      try {
         map.addLayer({
           id: 'orca-route-line',
           type: 'line',
@@ -540,16 +515,13 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'line-color': isVeto ? '#ef4444' : '#06b6d4',
-            'line-width': 3,
+            'line-width': 3.5,
             'line-dasharray': [2, 2]
           }
         });
-      }
-    } catch (err) {
-      console.warn('[ORCA MAP] Route layer setup warning:', err);
+      } catch (e) {}
     }
-
-  }, []);
+  }, [isVeto]);
 
   // Set up click popups and cursor hover effects ONCE per map instance
   const setupInteractionHandlers = useCallback((map: Map) => {
