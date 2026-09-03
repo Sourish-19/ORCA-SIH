@@ -521,6 +521,29 @@ export const MapView: React.FC<MapViewProps> = ({
         });
       } catch (e) {}
     }
+
+    // Move all ORCA layers to the top of the map layer stack so basemap tiles never cover them
+    const ORCA_LAYER_IDS = [
+      'orca-sst-fill',
+      'orca-chl-fill',
+      'orca-hazard-fill',
+      'orca-hazard-line',
+      'orca-pfz-fill',
+      'orca-pfz-line',
+      'orca-pfz-points',
+      'orca-route-line',
+      'orca-weather-circle',
+      'orca-vessels-circle',
+      'orca-landing-centres-circle'
+    ];
+
+    ORCA_LAYER_IDS.forEach((id) => {
+      try {
+        if (map.getLayer(id)) {
+          map.moveLayer(id);
+        }
+      } catch (e) {}
+    });
   }, [isVeto]);
 
   // Set up click popups and cursor hover effects ONCE per map instance

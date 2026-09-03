@@ -77,23 +77,26 @@ export function createPointBufferPolygon(
   radiusKm: number = 6
 ): [number, number][][] {
   try {
-    const pt = turf.point([centerLon, centerLat]);
-    const buffered = turf.buffer(pt, radiusKm, { units: 'kilometers' });
-    return (buffered?.geometry?.coordinates as [number, number][][]) || [];
+    const numPoints = 16;
+    const coords: [number, number][] = [];
+    const latRad = (centerLat * Math.PI) / 180;
+    const dLat = radiusKm / 111.0;
+    const dLon = radiusKm / (111.0 * Math.max(0.01, Math.cos(latRad)));
+    for (let i = 0; i <= numPoints; i++) {
+      const angle = (2 * Math.PI * i) / numPoints;
+      const pLat = centerLat + dLat * Math.sin(angle);
+      const pLon = centerLon + dLon * Math.cos(angle);
+      coords.push([Number(pLon.toFixed(5)), Number(pLat.toFixed(5))]);
+    }
+    return [coords];
   } catch (err) {
-    const dLat = radiusKm / 111;
-    const dLon = radiusKm / (111 * Math.cos((centerLat * Math.PI) / 180));
     return [
       [
-        [centerLon - dLon, centerLat - dLat / 2],
-        [centerLon - dLon / 2, centerLat - dLat],
-        [centerLon + dLon / 2, centerLat - dLat],
-        [centerLon + dLon, centerLat - dLat / 2],
-        [centerLon + dLon, centerLat + dLat / 2],
-        [centerLon + dLon / 2, centerLat + dLat],
-        [centerLon - dLon / 2, centerLat + dLat],
-        [centerLon - dLon, centerLat + dLat / 2],
-        [centerLon - dLon, centerLat - dLat / 2]
+        [centerLon - 0.05, centerLat - 0.05],
+        [centerLon + 0.05, centerLat - 0.05],
+        [centerLon + 0.05, centerLat + 0.05],
+        [centerLon - 0.05, centerLat + 0.05],
+        [centerLon - 0.05, centerLat - 0.05]
       ]
     ];
   }
