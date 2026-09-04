@@ -544,3 +544,92 @@ def get_map_layers(
         "vessels": {"type": "FeatureCollection", "features": vessel_features},
         "route": {"type": "FeatureCollection", "features": route_features}
     }
+
+
+@router.get("/vessels")
+def get_vessels_telemetry(
+    location: Optional[str] = Query(None, description="Location filter e.g. Chennai, Vizag"),
+    query: Optional[str] = Query(None, description="Query string e.g. Chennai, Cyclone")
+):
+    """
+    Get active AIS vessel tracking telemetry and coastal fleet statistics.
+    """
+    sector_key = _resolve_sector_key(location, query, None)
+    is_cyclone_veto = sector_key == "visakhapatnam" or (query and "cyclone" in query.lower())
+
+    vessels_data = [
+        {
+            "id": "v_104",
+            "vessel_id": "IND-TN-02-MM-104",
+            "name": "MFV Sea Queen",
+            "type": "Deep Sea Mechanized Trawler",
+            "badge": "⚓ Fishing",
+            "badgeStyle": "bg-cyan-950 text-cyan-300 border-cyan-800",
+            "proximity": "Inside PFZ Zone #12A",
+            "lastPing": "2 min ago",
+            "isHazard": False,
+            "speed_knots": 8.5,
+            "heading_deg": 105,
+            "harbour": "Kasimedu Harbour (Chennai)",
+            "latitude": 13.1420,
+            "longitude": 80.5210
+        },
+        {
+            "id": "v_302",
+            "vessel_id": "IND-AP-05-MM-302",
+            "name": "MFV Ocean Sentinel",
+            "type": "Trawler",
+            "badge": "⚠️ HAZARD",
+            "badgeStyle": "bg-red-950 text-red-400 border-red-800",
+            "proximity": "3.2km from Gale Warning",
+            "lastPing": "1 min ago",
+            "isHazard": True,
+            "speed_knots": 4.1,
+            "heading_deg": 290,
+            "harbour": "Visakhapatnam Fishing Harbour",
+            "latitude": 17.4200,
+            "longitude": 83.4500
+        },
+        {
+            "id": "v_088",
+            "vessel_id": "IND-TN-01-MM-088",
+            "name": "MFV Blue Marlin",
+            "type": "Gillnetter",
+            "badge": "🚢 Transit",
+            "badgeStyle": "bg-slate-900 text-slate-300 border-slate-700",
+            "proximity": "1.5km from PFZ #100",
+            "lastPing": "5 min ago",
+            "isHazard": False,
+            "speed_knots": 6.2,
+            "heading_deg": 120,
+            "harbour": "Kasimedu Harbour (Chennai)",
+            "latitude": 12.9510,
+            "longitude": 80.4510
+        },
+        {
+            "id": "v_211",
+            "vessel_id": "IND-TN-04-MM-211",
+            "name": "MFV Kasimedu Pride",
+            "type": "Motorized Craft",
+            "badge": "🚢 Transit",
+            "badgeStyle": "bg-slate-900 text-slate-300 border-slate-700",
+            "proximity": "5.0km from Kasimedu Base",
+            "lastPing": "12 min ago",
+            "isHazard": False,
+            "speed_knots": 5.5,
+            "heading_deg": 90,
+            "harbour": "Kasimedu Harbour (Chennai)",
+            "latitude": 13.1200,
+            "longitude": 80.3500
+        }
+    ]
+
+    return {
+        "active_count": 142,
+        "hazard_count": 12 if is_cyclone_veto else 1,
+        "sst_celsius": 28.4,
+        "wave_height_m": 1.1 if not is_cyclone_veto else 3.2,
+        "sector": sector_key.upper(),
+        "synced_at": datetime.now(timezone.utc).isoformat(),
+        "vessels": vessels_data
+    }

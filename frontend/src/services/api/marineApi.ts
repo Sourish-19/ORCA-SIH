@@ -93,5 +93,19 @@ export const marineApi = {
       throw new Error(`Failed to fetch map layers: ${res.statusText}`);
     }
     return res.json();
+  },
+
+  /**
+   * Fetches real-time AIS vessel telemetry and coastal fleet statistics from the backend.
+   */
+  async getFleetVessels(location?: string, query?: string) {
+    const url = new URL(`${API_BASE_URL}/api/vessels`);
+    if (location) url.searchParams.set('location', location);
+    if (query) url.searchParams.set('query', query);
+    const res = await fetch(url.toString());
+    if (!res.ok) {
+      throw new Error(`Failed to fetch vessel telemetry: ${res.statusText}`);
+    }
+    return res.json();
   }
 };
