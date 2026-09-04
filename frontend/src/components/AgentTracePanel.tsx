@@ -23,18 +23,18 @@ export const AgentTracePanel: React.FC<AgentTracePanelProps> = ({ agentTraces = 
         AGENT EXECUTION TRACE
       </h4>
 
-      <div className="relative space-y-3.5 pl-3">
-        {/* Vertical Timeline Bar */}
-        <div className="absolute left-[13px] top-2 bottom-3 w-0.5 bg-[#1c2838]"></div>
+      <div className="relative space-y-3.5">
+        {/* Vertical Timeline Bar - perfectly centered behind 20px checkmark circles */}
+        <div className="absolute left-[9px] top-2.5 bottom-3 w-0.5 bg-[#1c2838]"></div>
 
         {steps.map((step, idx) => {
           const isGreen = step.status === 'SUCCESS_GREEN';
           const isRunning = step.status === 'RUNNING';
 
           return (
-            <div key={idx} className="relative flex items-start gap-3 text-xs z-10">
-              {/* Step Circle Checkmark */}
-              <div className="mt-0.5 bg-[#0e1622] rounded-full">
+            <div key={idx} className="relative flex items-start gap-3 text-xs">
+              {/* Step Circle Checkmark Container */}
+              <div className="w-5 h-5 shrink-0 flex items-center justify-center bg-[#0e1622] rounded-full z-10 mt-0.5">
                 {isRunning ? (
                   <Circle className="w-4 h-4 text-cyan-400 fill-cyan-400/20 animate-ping" />
                 ) : (
@@ -42,7 +42,7 @@ export const AgentTracePanel: React.FC<AgentTracePanelProps> = ({ agentTraces = 
                 )}
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1 min-w-0">
                 <span className="font-extrabold text-[11px] text-slate-200 uppercase tracking-wide block">
                   {step.name}
                 </span>
