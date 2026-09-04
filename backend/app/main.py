@@ -9,7 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from app.config import HOST, PORT, DEBUG
 from app.models.request import UserQueryRequest, ORCAResponse
@@ -37,6 +37,12 @@ app.add_middleware(
 # (the legacy POST /api/query below is left untouched)
 app.include_router(recommend_router)
 app.include_router(map_router)
+
+
+@app.get("/api/vessels")
+def get_vessels_alias(location: Optional[str] = None, query: Optional[str] = None):
+    from app.routers.map import get_vessels_telemetry
+    return get_vessels_telemetry(location=location, query=query)
 
 
 @app.get("/")

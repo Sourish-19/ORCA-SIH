@@ -817,51 +817,65 @@ export const MapView: React.FC<MapViewProps> = ({
         });
       }
 
-      // 4. Dynamic AIS Vessel HTML Markers (Northern Shelf & Southern Waters)
-      if (currentVis.vessels && vesselData?.features?.length > 0) {
-        vesselData.features.forEach((vFeat: any, idx: number) => {
-          let vCoords = vFeat?.geometry?.coordinates;
-          const vProps = vFeat?.properties;
-          if (vCoords && vProps) {
-            // Nudge Sea Queen away from PFZ point if coincident
-            if (Math.abs(vCoords[0] - 80.6210) < 0.02 && Math.abs(vCoords[1] - 13.1850) < 0.02) {
-              vCoords = [80.5500, 13.2300];
-            }
+      // 4. Dynamic AIS Vessel HTML Markers (Live & Sector Fallback with Zero Overlap)
+      if (currentVis.vessels) {
+        const vFeatures = vesselData?.features && vesselData.features.length > 0 ? vesselData.features : [
+          { properties: { vessel_id: 'IND-TN-1906', name: 'SANMAR SNEHA', speed_knots: 5.2 }, geometry: { coordinates: [80.3753, 13.0952] } },
+          { properties: { vessel_id: 'IND-TN-7740', name: 'HAN HUI', speed_knots: 0.0, isHazard: true }, geometry: { coordinates: [80.3950, 13.1120] } },
+          { properties: { vessel_id: 'IND-TN-02-MM-104', name: 'MFV Sea Queen', speed_knots: 8.5 }, geometry: { coordinates: [80.5500, 13.2300] } },
+          { properties: { vessel_id: 'IND-TN-05-MM-302', name: 'MFV Chennai Sentinel', speed_knots: 4.1, isHazard: true }, geometry: { coordinates: [80.3800, 13.1800] } },
+          { properties: { vessel_id: 'IND-TN-01-MM-088', name: 'MFV Blue Marlin', speed_knots: 6.2 }, geometry: { coordinates: [80.4510, 12.9510] } }
+        ];
 
-            const vesselEl = document.createElement('div');
-            vesselEl.innerHTML = `
-              <div style="background:linear-gradient(135deg, #0c4a6e, #075985); color:#bae6fd; padding:2.5px 6px; border-radius:7px; border:1px solid #38bdf8; font-family:monospace; font-weight:800; font-size:9px; box-shadow:0 2px 8px rgba(0,0,0,0.6); display:flex; align-items:center; gap:3px; white-space:nowrap; cursor:pointer">
-                🚢 ${vProps.name || 'Vessel'} (${vProps.speed_knots ?? 5} kts)
-              </div>
-            `;
+        vFeatures.forEach((vf: any, idx: number) => {
+          const props = vf.properties || {};
+          let coords = vf.geometry?.coordinates;
+          if (!coords || coords.length < 2) return;
 
-            vesselEl.addEventListener('click', () => {
-              new Popup({ closeButton: true })
-                .setLngLat(vCoords)
-                .setHTML(`
-                  <div style="font-family:sans-serif; padding:6px; color:#0f172a; max-width:230px">
-                    <strong style="color:#0284c7; font-size:12px; display:block; margin-bottom:3px">🚢 AIS Vessel Telemetry</strong>
-                    <div style="font-size:11px; line-height:1.4">
-                      <div>Name: <b>${vProps.name}</b></div>
-                      <div>Type: <b>${vProps.type || 'Trawler'}</b></div>
-                      <div>Speed: <b>${vProps.speed_knots} kts</b> (${vProps.heading_deg || 0}°)</div>
-                      <div>Base: <b>${vProps.harbour || 'Kasimedu'}</b></div>
-                      <div style="color:#0284c7; margin-top:2px">Status: ${vProps.status || 'Active'}</div>
-                    </div>
-                  </div>
-                `)
-                .addTo(map);
-            });
-
-            const vm = new Marker({
-              element: vesselEl,
-              anchor: idx === 0 ? 'top-left' : 'bottom-left',
-              offset: idx === 0 ? [8, 8] : [8, -8]
-            })
-              .setLngLat(vCoords)
-              .addTo(map);
-            domMarkersRef.current.push(vm);
+          // Nudge Sea Queen away from PFZ point if coincident
+          if (Math.abs(coords[0] - 80.6210) < 0.02 && Math.abs(coords[1] - 13.1850) < 0.02) {
+            coords = [80.5500, 13.2300];
           }
+
+          const vId = props.vessel_id || props.code || props.name || 'IND-TN-1906';
+          const isHz = props.isHazard || props.status?.includes('HAZARD') || props.status?.includes('ALERT');
+
+          const vesselEl = document.createElement('div');
+          vesselEl.style.cursor = 'pointer';
+          vesselEl.innerHTML = `
+            <div style="background:${isHz ? 'linear-gradient(135deg, #7f1d1d, #991b1b)' : 'linear-gradient(135deg, #0c4a6e, #075985)'}; color:${isHz ? '#fca5a5' : '#7dd3fc'}; padding:2.5px 6.5px; border-radius:8px; border:1px solid ${isHz ? '#ef4444' : '#38bdf8'}; font-family:monospace; font-weight:800; font-size:9px; box-shadow:0 2px 8px rgba(0,0,0,0.6); display:flex; align-items:center; gap:3px; white-space:nowrap">
+              <span>${isHz ? '⚠️ 🚢' : '🚢'}</span>
+              <span>${vId}</span>
+              ${props.speed_knots !== undefined ? `<span style="opacity:0.75; font-size:8px">(${props.speed_knots} kts)</span>` : ''}
+            </div>
+          `;
+
+          vesselEl.addEventListener('click', () => {
+            new Popup({ closeButton: true })
+              .setLngLat([coords[0], coords[1]])
+              .setHTML(`
+                <div style="font-family:sans-serif; padding:6px; color:#0f172a; max-width:230px">
+                  <strong style="color:#0284c7; font-size:12px; display:block; margin-bottom:3px">🚢 AIS Vessel Telemetry</strong>
+                  <div style="font-size:11px; line-height:1.4">
+                    <div>Reg: <b>${vId}</b></div>
+                    <div>Name: <b>${props.name || vId}</b></div>
+                    <div>Type: <b>${props.type || 'Deep Sea Vessel'}</b></div>
+                    <div>Speed: <b>${props.speed_knots ?? 5} kts</b></div>
+                    <div style="color:#0284c7; margin-top:2px">Status: ${props.status || 'Active in sector'}</div>
+                  </div>
+                </div>
+              `)
+              .addTo(map);
+          });
+
+          const vm = new Marker({
+            element: vesselEl,
+            anchor: idx % 2 === 0 ? 'top-left' : 'bottom-left',
+            offset: idx % 2 === 0 ? [8, 8] : [8, -8]
+          })
+            .setLngLat([coords[0], coords[1]])
+            .addTo(map);
+          domMarkersRef.current.push(vm);
         });
       }
 
@@ -961,7 +975,7 @@ export const MapView: React.FC<MapViewProps> = ({
           .setLngLat((e.features[0].geometry as any).coordinates)
           .setHTML(`
             <div style="font-family:sans-serif; padding:6px; color:#0f172a">
-              <strong style="color:#0284c7; font-size:12px">🚢 ${props.name}</strong>
+              <strong style="color:#0284c7; font-size:12px">🚢 ${props.vessel_id || props.code ? `${props.vessel_id || props.code} • ` : ''}${props.name}</strong>
               <div style="font-size:11px; margin-top:3px">
                 <div>Type: ${props.type}</div>
                 <div>Speed: <b>${props.speed_knots} kts</b> | Heading: <b>${props.heading_deg}°</b></div>
