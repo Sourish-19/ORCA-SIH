@@ -404,7 +404,7 @@ export function getVesselsGeoJSON() {
         },
         geometry: {
           type: 'Point' as const,
-          coordinates: [80.3500, 13.1200]
+          coordinates: [80.3650, 13.1350]
         }
       }
     ]

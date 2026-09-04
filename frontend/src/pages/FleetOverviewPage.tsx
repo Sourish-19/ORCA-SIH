@@ -147,8 +147,8 @@ const DEFAULT_VESSELS = [
     speed_knots: 5.5,
     heading_deg: 90,
     harbour: "Kasimedu Harbour (Chennai)",
-    latitude: 13.1200,
-    longitude: 80.3500,
+    latitude: 13.1350,
+    longitude: 80.3650,
     mmsi: "419004211",
     imo: "IMO 9824211",
     call_sign: "VW211",
@@ -179,7 +179,7 @@ export const FleetOverviewPage: React.FC = () => {
             if (data?.vessels) {
               data.vessels = data.vessels.map((v: any) => ({
                 ...v,
-                longitude: v.longitude ? Math.max(80.3500, v.longitude) : 80.3950
+                longitude: v.longitude ? Math.max(80.3650, v.longitude) : 80.3950
               }));
             }
             setFleetData(data);
