@@ -1,10 +1,9 @@
 """
 Language & Intent Agent
-ASR, language detection, entity extraction (location, date, activity).
+ASR, language detection, entity extraction (location, date, activity, parameter).
 """
 
 from datetime import datetime, timedelta, timezone
-from typing import Tuple
 from app.models.request import StructuredIntent
 
 
@@ -40,18 +39,42 @@ def run_intent_agent(query: str, language_hint: str = "auto") -> StructuredInten
 
     # Language detection
     detected_lang = "English"
-    if any(word in lowered for word in ["nepo", "meen", "kadal", "vanga", "enge", "மீன்", "சென்னை", "நாளை", "பிடிக்கலாம்"]):
+    if any(word in lowered for word in ["nepo", "meen", "kadal", "vanga", "enge", "மீன்", "சென்னை", "நாளை", "பிடிக்கலாம்", "பாதுகாப்பான", "காற்று", "அலை"]):
         detected_lang = "Tamil"
     elif any(word in lowered for word in ["machli", "kahan", "matsya"]):
         detected_lang = "Hindi"
 
-    # Activity / Intent type
+    # Activity / Intent type detection logic
     intent_type = "FISHING_RECOMMENDATION"
-    if any(w in lowered for w in ["fish type", "fish species", "types of fish", "which fish", "what fish", "species", "meen vagai", "மீன் வகை", "vakai"]):
-        intent_type = "SPECIES_INQUIRY"
-    elif "weather" in lowered or "wind" in lowered or "cyclone" in lowered:
-        intent_type = "HAZARD_INQUIRY"
 
+    # 1. Species Inquiry
+    if any(w in lowered for w in [
+        "fish type", "fish species", "types of fish", "which fish", "what fish",
+        "species", "meen vagai", "மீன் வகை", "vakai", "varieties of fish", "what sort of fish",
+        "என்ன மீன்", "எந்த மீன்"
+    ]):
+        intent_type = "SPECIES_INQUIRY"
+
+    # 2. Safety Inquiry
+    elif any(w in lowered for w in [
+        "is it safe", "can i go", "can i fish", "safe to go", "safe to fish",
+        "safety status", "should i venture", "பாதுகாப்பானதா", "கடலுக்கு செல்லலாமா"
+    ]):
+        intent_type = "SAFETY_INQUIRY"
+
+    # 3. Specific Ocean Parameter Inquiry (SST, Wind, Waves, Chlorophyll)
+    elif any(w in lowered for w in [
+        "sst", "surface temperature", "temperature", "wind speed", "wind",
+        "wave height", "waves", "sea state", "chlorophyll", "sea condition",
+        "வெப்பநிலை", "காற்றின் வேகம்", "அலை உயரம்"
+    ]):
+        intent_type = "PARAMETER_INQUIRY"
+
+    # 4. Hazard / Warning Inquiry
+    elif any(w in lowered for w in [
+        "cyclone", "storm", "warning", "gale", "advisory", "hazard", "புயல்", "எச்சரிக்கை"
+    ]):
+        intent_type = "HAZARD_INQUIRY"
 
     return StructuredIntent(
         raw_query=clean_query,

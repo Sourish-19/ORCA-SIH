@@ -9,9 +9,8 @@ The response deliberately keeps two separate top-level objects:
 """
 
 from datetime import datetime
+from typing import Any, Dict, Optional
 from pydantic import BaseModel, Field
-
-from typing import Optional
 
 from app.models.decision import DecisionResult
 from app.models.explanation import DecisionExplanation
@@ -22,7 +21,7 @@ DEFAULT_QUERY = "Where should I fish tomorrow near Chennai?"
 
 
 class RecommendationRequest(BaseModel):
-    query: str = Field(default=DEFAULT_QUERY, description="Natural-language question (echoed; not parsed for the prototype)")
+    query: str = Field(default=DEFAULT_QUERY, description="Natural-language question")
     language: str = Field(default="auto", description="'auto' | 'en' | 'ta' ('auto' detects Tamil script in the query)")
     audience: str = Field(default="fisherman", description="'fisherman' | 'analyst'")
 
@@ -43,7 +42,7 @@ class RecommendationResponse(BaseModel):
     query: str
     language: str = Field(..., description="Resolved: 'en' | 'ta'")
     audience: str
-    location: str = Field("Chennai", description="Fixed for the prototype")
+    location: str = Field("Chennai", description="Target location name")
     data_mode: str = Field(..., description="'PROCESSED' (static files) | 'LIVE' (future)")
     evaluated_zones: int
 
@@ -53,3 +52,5 @@ class RecommendationResponse(BaseModel):
     marine_weather: Optional[NormalizedMarineWeather] = Field(
         None, description="IMD coastal bulletin applied to the evaluated zones (context for the UI)"
     )
+    intent: Optional[Dict[str, Any]] = Field(None, description="Extracted intent and entity metadata")
+    verified_context: Optional[Dict[str, Any]] = Field(None, description="Authoritative ground truth object passed to LLM")

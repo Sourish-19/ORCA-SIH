@@ -90,7 +90,6 @@ function mapSuitability(top: RecLocationDecision | null): SuitabilityBreakdown |
     chlorophyll_contribution: ce.chlorophyll_score,
     sst_contribution: ce.sst_score,
     accessibility_contribution: ce.accessibility_score,
-    // wind_contribution / wave_contribution intentionally omitted - OSI has no such term.
     formula_explanation:
       'OSI = PFZ baseline (50) + Chlorophyll (0-25) + SST (0-15) + Accessibility (0-10)',
   };
@@ -161,18 +160,29 @@ function mapTraces(rec: RecommendationResponse): AgentStepTrace[] {
   const ts = rec.timestamp;
   const vetoed = rec.decision.safety_veto_active;
   const top = rec.decision.top_recommendation;
+  const exp = rec.explanation;
+
   return [
     {
       step_id: 1,
+      agent_name: 'Language + Intent Agent',
+      action: 'Detect language, primary intent & location entity',
+      status: 'SUCCESS',
+      duration_ms: 5.0,
+      timestamp: ts,
+      summary: `Parsed intent=${rec.intent?.primary_intent || 'FISHING_RECOMMENDATION'}, location=${rec.location}, language=${rec.language}`,
+    },
+    {
+      step_id: 2,
       agent_name: 'Evidence Builder',
       action: 'Fuse INCOIS PFZ + Copernicus SST/Chlorophyll + IMD weather & warnings',
       status: 'SUCCESS',
       duration_ms: t.evidence_ms,
       timestamp: ts,
-      summary: `Built ${rec.evaluated_zones} evidence bundles for Chennai PFZ anchors.`,
+      summary: `Built ${rec.evaluated_zones} evidence bundles for ${rec.location} PFZ anchors.`,
     },
     {
-      step_id: 2,
+      step_id: 3,
       agent_name: 'Suitability Engine',
       action: 'Compute the ORCA Suitability Index (OSI)',
       status: 'SUCCESS',
@@ -183,7 +193,7 @@ function mapTraces(rec: RecommendationResponse): AgentStepTrace[] {
         : 'Scored all candidate zones.',
     },
     {
-      step_id: 3,
+      step_id: 4,
       agent_name: 'Safety Engine',
       action: 'Deterministic veto check (wind, sea state, warnings, cyclone, freshness)',
       status: vetoed ? 'VETO' : 'SUCCESS',
@@ -192,22 +202,13 @@ function mapTraces(rec: RecommendationResponse): AgentStepTrace[] {
       summary: mapSafety(rec.decision).safety_summary,
     },
     {
-      step_id: 4,
-      agent_name: 'Decision Layer',
-      action: 'Merge suitability + safety, apply safety veto, rank',
-      status: vetoed ? 'VETO' : 'SUCCESS',
-      duration_ms: t.decision_ms,
-      timestamp: ts,
-      summary: rec.decision.summary,
-    },
-    {
       step_id: 5,
-      agent_name: 'LLM Explainer',
-      action: 'Generate the plain-language explanation',
-      status: 'SUCCESS',
+      agent_name: 'Grounding & Fact Validator',
+      action: 'Validate LLM output against VERIFIED_CONTEXT ground truth',
+      status: exp.grounding_ok ? 'SUCCESS' : 'WARN',
       duration_ms: t.explain_ms,
       timestamp: ts,
-      summary: `${rec.explanation.model_used}${rec.explanation.is_fallback ? ' (template fallback)' : ''}`,
+      summary: `Model: ${exp.model_used} | Grounding OK: ${exp.grounding_ok} | Fallback: ${exp.is_fallback} (${exp.fallback_reason || 'None'})`,
     },
   ];
 }
@@ -218,10 +219,12 @@ export function adaptToORCAResponse(rec: RecommendationResponse): ORCAResponse {
   const top = isVeto ? null : dec.top_recommendation;
   const ts = rec.timestamp;
 
+  const primaryIntent = (rec.intent?.primary_intent as any) || 'FISHING_RECOMMENDATION';
+
   const intent: StructuredIntent = {
     raw_query: rec.query,
-    detected_language: rec.language,
-    primary_intent: 'FISHING_RECOMMENDATION',
+    detected_language: rec.language === 'ta' ? 'Tamil' : 'English',
+    primary_intent: primaryIntent,
     location_name: rec.location,
     target_date_str: 'tomorrow',
     target_datetime: ts,
@@ -233,7 +236,7 @@ export function adaptToORCAResponse(rec: RecommendationResponse): ORCAResponse {
     ? {
         id: slug(top.landing_centre),
         name: top.landing_centre,
-        district: 'Chennai',
+        district: rec.location,
         state: 'Tamil Nadu',
         latitude: top.latitude,
         longitude: top.longitude,
@@ -241,12 +244,16 @@ export function adaptToORCAResponse(rec: RecommendationResponse): ORCAResponse {
       }
     : undefined;
 
+  const headline = rec.explanation.headline;
+  const narrative = rec.explanation.narrative;
+  const fullSynthesizedAnswer = `${headline}\n\n${narrative}`;
+
   return {
     request_id: rec.request_id,
     timestamp: ts,
     query: rec.query,
     intent,
-    data_mode: 'CACHED', // pre-processed static datasets, not real-time
+    data_mode: 'CACHED',
     overall_confidence: isVeto ? 0.95 : dec.overall_status === 'GO' ? 0.9 : 0.82,
     safety: mapSafety(dec),
     top_recommendation: top ? mapZone(top, ts) : undefined,
@@ -254,8 +261,8 @@ export function adaptToORCAResponse(rec: RecommendationResponse): ORCAResponse {
     candidate_zones: isVeto ? [] : dec.recommendations.map((d) => mapZone(d, ts)),
     nearest_landing_centre: nearest,
     weather_summary: mapWeather(rec.marine_weather),
-    synthesized_answer: `${rec.explanation.headline}\n\n${rec.explanation.narrative}`,
-    audio_narrative_text: rec.explanation.narrative,
+    synthesized_answer: fullSynthesizedAnswer,
+    audio_narrative_text: narrative,
     evidence_trail: mapEvidence(pickPrimary(dec), ts),
     agent_traces: mapTraces(rec),
   };

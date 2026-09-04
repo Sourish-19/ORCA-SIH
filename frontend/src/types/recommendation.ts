@@ -160,4 +160,6 @@ export interface RecommendationResponse {
   explanation: RecDecisionExplanation;
   timings: RecStageTimings;
   marine_weather: RecMarineWeather | null;
+  intent?: { primary_intent?: string; detected_language?: string; location_name?: string };
+  verified_context?: Record<string, any>;
 }

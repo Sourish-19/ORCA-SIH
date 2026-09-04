@@ -26,11 +26,12 @@ def run_synthesis_agent(
     """
     is_tamil = intent.detected_language.lower() in ("tamil", "ta")
 
+    # 1. SPECIES INQUIRY
     if intent.primary_intent == "SPECIES_INQUIRY":
         if is_tamil:
             narrative = (
                 f"{intent.location_name} துறைமுகப் பகுதியில் வஞ்சரம் (Seer Fish), கானாங்கெளுத்தி (Mackerel), "
-                f"கவலை (Sardine), வவ்வால் (Pomfret), நெத்திலி (Anchovy), சங்கரா (Red Snapper), மற்றும் பாரை (Trevally) "
+                f"கவலை (Sardine), வவ்வால் (Pomfret), நெத்திலி (Anchovies), சங்கரா (Red Snapper), மற்றும் பாரை (Trevally) "
                 f"ஆகிய மீன் வகைகள் அதிகம் கிடைக்கும்."
             )
             full_answer = (
@@ -46,7 +47,7 @@ def run_synthesis_agent(
         else:
             narrative = (
                 f"Common fish species near {intent.location_name} Harbour include Seer Fish (Vanjaram), "
-                f"Indian Mackerel (Kanagurutha), Oil Sardines (Kavalai), Silver Pomfret (Vavval), "
+                f"Indian Mackerel (Kanagurutha), Oil Sardines (Kavalai), Silver & Black Pomfret (Vavval), "
                 f"Anchovies (Nethili), Red Snapper (Sankara), Trevally (Parai), and Yellowfin Tuna."
             )
             full_answer = (
@@ -61,12 +62,11 @@ def run_synthesis_agent(
             )
         return full_answer, narrative
 
+    # 2. SAFETY VETO
     if safety.veto_triggered:
-
-        # Veto Response
         if is_tamil:
             narrative = (
-                f"எச்சரிக்கை! {intent.location_name} கடற்பகுதியில் புயல் மற்றும் ஆபத்தான கடல் நிலைமை உள்ளதால் கடலுக்கு செல்ல வேண்டாம். "
+                f"எச்சரிக்கை! {intent.location_name} கடற்பகுதியில் அபாயகரமான காலநிலை உள்ளதால் கடலுக்கு செல்ல வேண்டாம். "
                 f"காரணம்: {safety.safety_summary}. உங்கள் படகை {landing_centre.name} துறைமுகத்தில் பாதுகாப்பாக நிறுத்தவும்."
             )
         else:
@@ -86,6 +86,27 @@ def run_synthesis_agent(
         )
         return full_answer, narrative
 
+    # 3. SAFETY INQUIRY
+    if intent.primary_intent == "SAFETY_INQUIRY":
+        if is_tamil:
+            narrative = f"{intent.location_name} கடற்பகுதியில் நிலைமைகள் பாதுகாப்பாக உள்ளன. காற்று வேகம் {weather.wind_speed_knots:.1f} நாட்ஸ்."
+            full_answer = f"🛡️ **கடல் பாதுகாப்பு நிலை: பாதுகாப்பானது**\n\n{intent.location_name} பகுதியில் நிலைமைகள் தெளிவாக உள்ளன."
+        else:
+            narrative = f"Marine weather conditions near {intent.location_name} are currently clear and safe for fishing. Wind is at {weather.wind_speed_knots:.1f} knots."
+            full_answer = f"🛡️ **MARINE SAFETY STATUS: SAFE**\n\nWeather near {intent.location_name} is clear with manageable wind ({weather.wind_speed_knots:.1f} knots) and wave height ({weather.wave_height_m:.1f} m)."
+        return full_answer, narrative
+
+    # 4. PARAMETER INQUIRY
+    if intent.primary_intent == "PARAMETER_INQUIRY":
+        if is_tamil:
+            narrative = f"{intent.location_name} கடற்பகுதியில் காற்றின் வேகம் {weather.wind_speed_knots:.1f} நாட்ஸ், அலை உயரம் {weather.wave_height_m:.1f} மீட்டர்கள்."
+            full_answer = f"🌊 **{intent.location_name.upper()} கடல் அளவுருக்கள்**\n\n- காற்றின் வேகம்: {weather.wind_speed_knots:.1f} knots\n- அலை உயரம்: {weather.wave_height_m:.1f} m\n- பார்வை திறன்: {weather.visibility_km:.1f} km"
+        else:
+            narrative = f"Verified weather parameters for {intent.location_name}: Wind speed is {weather.wind_speed_knots:.1f} knots, wave height is {weather.wave_height_m:.1f} meters."
+            full_answer = f"🌊 **VERIFIED OCEAN PARAMETERS FOR {intent.location_name.upper()}**\n\n- Wind Speed: {weather.wind_speed_knots:.1f} knots\n- Wave Height: {weather.wave_height_m:.1f} m\n- Visibility: {weather.visibility_km:.1f} km"
+        return full_answer, narrative
+
+    # 5. FISHING RECOMMENDATION
     if not top_recommendation:
         if is_tamil:
             narrative = f"{intent.location_name} அருகில் மீன்பிடி மண்டலங்கள் எதுவும் கண்டறியப்படவில்லை."
@@ -94,19 +115,19 @@ def run_synthesis_agent(
         full_answer = f"No valid Potential Fishing Zones (PFZ) were found within range of {intent.location_name}."
         return full_answer, narrative
 
-    # Safe / Moderate Fishing Recommendation Response
     rec = top_recommendation
+    score_val = suitability.total_score if suitability else rec.strength_score
     if is_tamil:
         narrative = (
             f"{intent.location_name} கடற்பகுதியில் மீன்பிடிக்க பரிந்துரைக்கப்பட்ட இடம் {rec.sector_name}, "
             f"தூரம் {rec.distance_km:.0f} கிலோமீட்டர், திசை {rec.bearing_deg:.0f} டிகிரி ({landing_centre.name} இலிருந்து). "
-            f"பொருத்தநிலை மதிப்பெண் {suitability.total_score:.0f} சதவீதம். வானிலை பாதுகாப்பானது, காற்று வேகம் {weather.wind_speed_knots:.1f} நாட்ஸ்."
+            f"பொருத்தநிலை மதிப்பெண் {score_val:.0f} சதவீதம். வானிலை பாதுகாப்பானது."
         )
     else:
         narrative = (
             f"Recommended fishing zone for {intent.target_date_str.lower()} is {rec.sector_name}, "
             f"located {rec.distance_km:.1f} kilometers at {rec.bearing_deg:.0f} degrees from {landing_centre.name}. "
-            f"Suitability score is {suitability.total_score:.0f} percent. Marine weather is clear with wind at {weather.wind_speed_knots:.1f} knots."
+            f"Suitability score is {score_val:.0f} percent. Marine weather is clear."
         )
 
     full_answer = (
@@ -115,7 +136,7 @@ def run_synthesis_agent(
         f"**Coordinates**: {rec.center_lat:.4f}° N, {rec.center_lon:.4f}° E\n"
         f"**Distance & Bearing**: {rec.distance_km:.1f} km at bearing {rec.bearing_deg:.0f}° from **{landing_centre.name}**\n"
         f"**Expected Depth**: {rec.depth_m:.0f} meters\n"
-        f"**Suitability Score**: **{suitability.total_score:.1f}%** ({suitability.formula_explanation})\n\n"
+        f"**Suitability Score**: **{score_val:.1f}%**\n\n"
         f"**Marine Weather Forecast**:\n"
         f"- Wind: {weather.wind_speed_knots:.1f} knots\n"
         f"- Wave Height: {weather.wave_height_m:.1f} m\n"
@@ -124,4 +145,3 @@ def run_synthesis_agent(
     )
 
     return full_answer, narrative
-
