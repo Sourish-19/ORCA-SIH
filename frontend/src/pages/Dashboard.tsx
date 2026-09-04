@@ -174,12 +174,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
               selectedZone
                 ? {
                     zone_id: selectedZone.zone_id || 'zone_selected',
-                    total_score: Number(selectedZone.score) || 88,
+                    total_score: Math.min(92, Math.max(50, Number(selectedZone.score) || 84)),
                     pfz_contribution: 50,
-                    chlorophyll_contribution: 20,
+                    chlorophyll_contribution: 18,
                     sst_contribution: 12,
-                    accessibility_contribution: 6,
-                    formula_explanation: 'OSI = PFZ baseline (50) + Chlorophyll (20) + SST (12) + Access (6)'
+                    accessibility_contribution: 4,
+                    formula_explanation: 'OSI = PFZ baseline (50) + Chlorophyll (18) + SST (12) + Access (4)'
                   }
                 : response?.suitability_breakdown
             }
@@ -187,16 +187,16 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
               selectedZone
                 ? {
                     zone_id: selectedZone.zone_id || 'zone_selected',
-                    sector_name: selectedZone.sector_name || 'Selected Sector',
-                    center_lat: 0,
-                    center_lon: 0,
-                    depth_m: Number(selectedZone.depth_m) || 35,
+                    sector_name: selectedZone.sector_name || selectedZone.nearest_landing_centre || 'Ennorekuppam Shelf',
+                    center_lat: selectedZone.latitude || 13.2344,
+                    center_lon: selectedZone.longitude || 80.4161,
+                    depth_m: Number(selectedZone.depth_m) || 36.5,
                     bearing_deg: Number(selectedZone.bearing_deg) || 87,
-                    distance_km: Number(selectedZone.distance_km) || 12,
-                    nearest_landing_centre: selectedZone.nearest_landing_centre || 'Harbour',
+                    distance_km: Number(selectedZone.distance_km) || 11.5,
+                    nearest_landing_centre: selectedZone.nearest_landing_centre || 'Kasimedu Harbour',
                     valid_from: new Date().toISOString(),
                     valid_until: new Date(Date.now() + 86400000).toISOString(),
-                    strength_score: Number(selectedZone.score) || 88,
+                    strength_score: Math.min(92, Math.max(50, Number(selectedZone.score) || 84)),
                     source: selectedZone.source || 'INCOIS',
                     fetched_at: new Date().toISOString()
                   }

@@ -682,7 +682,7 @@ export const MapView: React.FC<MapViewProps> = ({
         const pfz100El = document.createElement('div');
         pfz100El.innerHTML = `
           <div style="background:#047857; color:#ffffff; padding:4px 8px; border-radius:12px; border:1.5px solid #a7f3d0; font-family:monospace; font-weight:bold; font-size:11px; box-shadow:0 0 10px rgba(16,185,129,0.5); display:flex; align-items:center; gap:4px; white-space:nowrap">
-            🐟 PFZ #100 (94% Score)
+            🐟 PFZ #100 (84% Score)
           </div>
         `;
         const m100 = new Marker({ element: pfz100El, anchor: 'bottom' })
