@@ -612,15 +612,40 @@ export const MapView: React.FC<MapViewProps> = ({
       });
       domMarkersRef.current = [];
 
-      // Kasimedu Harbour HTML Marker
+      // Inject keyframes for Kasimedu Harbour Sonar Radar Ripple effect
+      const rippleStyleId = 'orca-harbour-ripple-keyframes';
+      if (!document.getElementById(rippleStyleId)) {
+        const styleEl = document.createElement('style');
+        styleEl.id = rippleStyleId;
+        styleEl.innerHTML = `
+          @keyframes harbourSonarPing {
+            0% { transform: scale(0.5); opacity: 0.95; }
+            75%, 100% { transform: scale(2.6); opacity: 0; }
+          }
+          @keyframes harbourSonarPulse {
+            0%, 100% { opacity: 0.85; transform: scale(1); }
+            50% { opacity: 0.35; transform: scale(1.4); }
+          }
+        `;
+        document.head.appendChild(styleEl);
+      }
+
+      // Kasimedu Harbour HTML Marker with Pulsating Sonar Radar Ripple Effect
       if (currentVis.ports !== false) {
         const harbourEl = document.createElement('div');
+        harbourEl.style.position = 'relative';
+        harbourEl.style.display = 'flex';
+        harbourEl.style.alignItems = 'center';
+        harbourEl.style.justifyContent = 'center';
         harbourEl.innerHTML = `
-          <div style="background:#0284c7; color:#ffffff; padding:4px 9px; border-radius:12px; border:2px solid #ffffff; font-family:monospace; font-weight:bold; font-size:11px; box-shadow:0 4px 14px rgba(0,0,0,0.6); display:flex; align-items:center; gap:4px; white-space:nowrap">
-            ⚓ Kasimedu Harbour
+          <div style="position:absolute; width:52px; height:52px; border-radius:50%; background:rgba(56,189,248,0.3); border:2px solid #38bdf8; animation:harbourSonarPing 2s infinite ease-out; pointer-events:none"></div>
+          <div style="position:absolute; width:34px; height:34px; border-radius:50%; background:rgba(2,132,199,0.4); border:1.5px solid #7dd3fc; animation:harbourSonarPulse 1.6s infinite ease-in-out; pointer-events:none"></div>
+          <div style="background:#0284c7; color:#ffffff; padding:5px 12px; border-radius:14px; border:2.5px solid #ffffff; font-family:monospace; font-weight:900; font-size:12px; box-shadow:0 0 25px rgba(2,132,199,0.9), 0 4px 14px rgba(0,0,0,0.7); display:flex; align-items:center; gap:5px; white-space:nowrap; z-index:10; cursor:pointer">
+            <span style="font-size:14px">⚓</span>
+            <span>Kasimedu Harbour (Chennai Base)</span>
           </div>
         `;
-        const m = new Marker({ element: harbourEl, anchor: 'bottom' })
+        const m = new Marker({ element: harbourEl, anchor: 'center' })
           .setLngLat([80.2974, 13.1258])
           .addTo(map);
         domMarkersRef.current.push(m);
