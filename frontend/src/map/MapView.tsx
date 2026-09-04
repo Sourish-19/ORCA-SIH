@@ -12,7 +12,8 @@ import {
   Waves,
   CheckCircle2,
   RefreshCw,
-  Anchor
+  Anchor,
+  Wind
 } from 'lucide-react';
 
 import {
@@ -191,6 +192,7 @@ export const MapView: React.FC<MapViewProps> = ({
     sst: true,
     chl: true,
     wind: true,
+    waves: true,
     hazards: true,
     route: true,
     vessels: true,
@@ -199,6 +201,17 @@ export const MapView: React.FC<MapViewProps> = ({
 
   const layerVisibilityRef = useRef(layerVisibility);
   layerVisibilityRef.current = layerVisibility;
+
+  // Refs for High-Performance Animated Wind Streamlines & Wave Swell Canvas Overlay
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const particlesRef = useRef<Array<{
+    lon: number;
+    lat: number;
+    age: number;
+    maxAge: number;
+    history: [number, number][];
+  }>>([]);
+  const wavePhaseRef = useRef<number>(0);
 
   const targetLon = center ? center[0] : DEFAULT_CENTER[0];
   const targetLat = center ? center[1] : DEFAULT_CENTER[1];
@@ -907,6 +920,65 @@ export const MapView: React.FC<MapViewProps> = ({
           .addTo(map);
         domMarkersRef.current.push(sm);
       }
+
+      // 6. Dynamic Marine Weather & Ocean Vector HTML Marker
+      if ((currentVis.wind || currentVis.waves) && weatherData?.features?.length > 0) {
+        const stations = weatherData.features;
+        let bestSt = stations[0];
+        let bestDist = Infinity;
+        for (const st of stations) {
+          const c = st.geometry?.coordinates;
+          if (c) {
+            const d = Math.hypot(c[0] - targetLon, c[1] - targetLat);
+            if (d < bestDist) {
+              bestDist = d;
+              bestSt = st;
+            }
+          }
+        }
+
+        if (bestSt && bestSt.geometry?.coordinates) {
+          const wCoords = bestSt.geometry.coordinates;
+          const wProps = bestSt.properties || {};
+          const wSpeed = wProps.wind_speed_knots ?? 14.5;
+          const wDir = wProps.wind_direction_deg ?? 110;
+          const wWave = wProps.wave_height_m ?? 1.2;
+          const wPeriod = wProps.wave_period_sec ?? 7.5;
+
+          const weatherEl = document.createElement('div');
+          weatherEl.innerHTML = `
+            <div style="background:linear-gradient(135deg, #075985, #0369a1); color:#e0f2fe; padding:3px 7px; border-radius:8px; border:1px solid #38bdf8; font-family:monospace; font-weight:800; font-size:9.5px; box-shadow:0 0 10px rgba(56,189,248,0.4); display:flex; align-items:center; gap:4px; white-space:nowrap; cursor:pointer">
+              <span>💨 Wind ${wSpeed} kts (${wDir}°)</span>
+              <span style="opacity:0.6">|</span>
+              <span>🌊 Wave ${wWave}m (${wPeriod}s)</span>
+            </div>
+          `;
+
+          weatherEl.addEventListener('click', () => {
+            new Popup({ closeButton: true })
+              .setLngLat(wCoords)
+              .setHTML(`
+                <div style="font-family:sans-serif; padding:6px; color:#0f172a; max-width:240px">
+                  <strong style="color:#0284c7; font-size:12px; display:block; margin-bottom:3px">🌊 IMD Marine Weather Telemetry</strong>
+                  <div style="font-size:11px; line-height:1.4">
+                    <div>Station: <b>${wProps.location_name || 'Coastal Waters'}</b></div>
+                    <div>Wind Speed: <b style="color:#0284c7">${wSpeed} kts</b></div>
+                    <div>Wind Direction: <b>${wDir}°</b></div>
+                    <div>Wave Height: <b style="color:#0891b2">${wWave} m</b></div>
+                    <div>Wave Period: <b>${wPeriod} sec</b></div>
+                    <div style="color:#64748b; font-size:9.5px; margin-top:2px">Source: ${wProps.source || 'IMD Marine Bulletin'}</div>
+                  </div>
+                </div>
+              `)
+              .addTo(map);
+          });
+
+          const wm = new Marker({ element: weatherEl, anchor: 'top-right', offset: [-10, 10] })
+            .setLngLat(wCoords)
+            .addTo(map);
+          domMarkersRef.current.push(wm);
+        }
+      }
     } catch (err) {
       console.warn('[ORCA MAP] HTML DOM Marker error:', err);
     }
@@ -975,7 +1047,28 @@ export const MapView: React.FC<MapViewProps> = ({
           .addTo(map);
       });
 
-      ['orca-landing-centres-circle', 'orca-pfz-fill', 'orca-vessels-circle'].forEach((id) => {
+      map.on('click', 'orca-weather-circle', (e: any) => {
+        if (!e.features || !e.features[0]) return;
+        const props = e.features[0].properties;
+        new Popup({ closeButton: true })
+          .setLngLat((e.features[0].geometry as any).coordinates)
+          .setHTML(`
+            <div style="font-family:sans-serif; padding:6px; color:#0f172a; max-width:240px">
+              <strong style="color:#0284c7; font-size:12px; display:block; margin-bottom:3px">🌊 IMD Marine Weather Telemetry</strong>
+              <div style="font-size:11px; line-height:1.4">
+                <div>Location: <b>${props.location_name || 'Coastal Waters'}</b></div>
+                <div>Wind Speed: <b style="color:#0284c7">${props.wind_speed_knots} kts</b></div>
+                <div>Wind Direction: <b>${props.wind_direction_deg}°</b></div>
+                <div>Wave Height: <b style="color:#0891b2">${props.wave_height_m} m</b></div>
+                <div>Wave Period: <b>${props.wave_period_sec} sec</b></div>
+                <div style="color:#64748b; font-size:9.5px; margin-top:2px">Source: ${props.source || 'IMD Marine Bulletin'}</div>
+              </div>
+            </div>
+          `)
+          .addTo(map);
+      });
+
+      ['orca-landing-centres-circle', 'orca-pfz-fill', 'orca-vessels-circle', 'orca-weather-circle'].forEach((id) => {
         map.on('mouseenter', id, () => {
           map.getCanvas().style.cursor = 'pointer';
         });
@@ -1208,6 +1301,327 @@ export const MapView: React.FC<MapViewProps> = ({
     } catch (e) {}
   };
 
+  const isBothWeatherActive = layerVisibility.wind && layerVisibility.waves;
+
+  const handleToggleBothWeather = () => {
+    const nextState = !isBothWeatherActive;
+    setLayerVisibility((prev) => ({ ...prev, wind: nextState, waves: nextState }));
+
+    const map = mapInstanceRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+
+    const visibilityVal = nextState ? 'visible' : 'none';
+    ['orca-weather-circle', 'orca-weather-arrow'].forEach((id) => {
+      try {
+        if (map.getLayer(id)) {
+          map.setLayoutProperty(id, 'visibility', visibilityVal);
+        }
+      } catch (e) {}
+    });
+
+    try {
+      attachOrcaDataLayers(map);
+    } catch (e) {}
+  };
+
+  // High-Performance Animated Wind Flow Streamlines & Wave Swell Propagation Canvas Loop
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const showWind = layerVisibility.wind;
+    const showWaves = layerVisibility.waves;
+
+    if (!showWind && !showWaves) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    let animationFrameId: number;
+    let lastTimestamp = performance.now();
+
+    const getWeatherStations = () => {
+      const backendData = cachedBackendLayersRef.current;
+      const weatherData = backendData?.weather || getMarineWeatherGeoJSON();
+      return weatherData?.features || [];
+    };
+
+    const interpolateWeather = (lon: number, lat: number, stations: any[]) => {
+      if (!stations || stations.length === 0) {
+        return { speed: 15.0, dir: 110.0, waveHeight: 1.2, wavePeriod: 7.5, u: -14.0, v: -5.0 };
+      }
+
+      let totalWeight = 0;
+      let uSum = 0;
+      let vSum = 0;
+      let waveHeightSum = 0;
+      let wavePeriodSum = 0;
+
+      for (const st of stations) {
+        const coords = st.geometry?.coordinates;
+        if (!coords) continue;
+        const props = st.properties || {};
+        const sLon = coords[0];
+        const sLat = coords[1];
+        const distSq = (lon - sLon) * (lon - sLon) + (lat - sLat) * (lat - sLat);
+        const weight = 1 / Math.max(0.0001, distSq);
+
+        const speed = Number(props.wind_speed_knots ?? 15.0);
+        const dir = Number(props.wind_direction_deg ?? 110.0);
+        const wh = Number(props.wave_height_m ?? 1.2);
+        const wp = Number(props.wave_period_sec ?? 7.5);
+
+        // In meteorology, wind direction theta is direction FROM which wind blows (0=N, 90=E, 180=S, 270=W).
+        // Flow direction (direction towards) is theta + 180 deg.
+        // In Cartesian angle where 0 is East, 90 is North: angle = 270 - theta.
+        const cartesianAngleRad = (270.0 - dir) * (Math.PI / 180.0);
+        const u = speed * Math.cos(cartesianAngleRad); // Eastward component
+        const v = speed * Math.sin(cartesianAngleRad); // Northward component
+
+        uSum += u * weight;
+        vSum += v * weight;
+        waveHeightSum += wh * weight;
+        wavePeriodSum += wp * weight;
+        totalWeight += weight;
+      }
+
+      if (totalWeight === 0) {
+        return { speed: 15.0, dir: 110.0, waveHeight: 1.2, wavePeriod: 7.5, u: -14.0, v: -5.0 };
+      }
+
+      const uAvg = uSum / totalWeight;
+      const vAvg = vSum / totalWeight;
+      const speedAvg = Math.hypot(uAvg, vAvg);
+      const cartesianRad = Math.atan2(vAvg, uAvg);
+      const dirDeg = (270.0 - cartesianRad * (180.0 / Math.PI) + 360.0) % 360.0;
+
+      return {
+        speed: speedAvg,
+        dir: dirDeg,
+        waveHeight: waveHeightSum / totalWeight,
+        wavePeriod: wavePeriodSum / totalWeight,
+        u: uAvg,
+        v: vAvg
+      };
+    };
+
+    const getMapBounds = (map: Map) => {
+      try {
+        const bounds = map.getBounds();
+        return {
+          west: bounds.getWest(),
+          east: bounds.getEast(),
+          south: bounds.getSouth(),
+          north: bounds.getNorth()
+        };
+      } catch (e) {
+        return { west: 79.5, east: 81.5, south: 12.0, north: 14.0 };
+      }
+    };
+
+    const PARTICLE_COUNT = 180;
+
+    const initParticle = (bounds: { west: number; east: number; south: number; north: number }) => {
+      const lon = bounds.west + Math.random() * (bounds.east - bounds.west);
+      const lat = bounds.south + Math.random() * (bounds.north - bounds.south);
+      return {
+        lon,
+        lat,
+        age: Math.floor(Math.random() * 50),
+        maxAge: 55 + Math.floor(Math.random() * 45),
+        history: [] as [number, number][]
+      };
+    };
+
+    const renderFrame = (timestamp: number) => {
+      const map = mapInstanceRef.current;
+      if (!map || !canvas) return;
+
+      const dt = Math.min(0.1, (timestamp - lastTimestamp) / 1000);
+      lastTimestamp = timestamp;
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const width = Math.floor(rect.width);
+      const height = Math.floor(rect.height);
+
+      if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+      }
+
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.clearRect(0, 0, width, height);
+
+      const bounds = getMapBounds(map);
+      const stations = getWeatherStations();
+
+      // 1. RENDER WAVE FLOW (Propagating Swell Wavefront Isolines & Crests)
+      if (showWaves && stations.length > 0) {
+        const centerLon = (bounds.west + bounds.east) / 2;
+        const centerLat = (bounds.south + bounds.north) / 2;
+        const oceanWeather = interpolateWeather(centerLon, centerLat, stations);
+        const wh = oceanWeather.waveHeight; // Significant wave height in meters
+        const wp = oceanWeather.wavePeriod; // Peak wave period in seconds
+
+        // Swell propagation tempo driven directly by wave period T (in seconds)
+        const waveSpeedMultiplier = (2 * Math.PI) / Math.max(3.5, wp);
+        wavePhaseRef.current = (wavePhaseRef.current + dt * waveSpeedMultiplier) % (2 * Math.PI);
+
+        // East Coast (Chennai, Vizag): Swell propagates from East ocean basin Westwards towards shelf
+        // West Coast (Kochi, Mangalore): Swell propagates from West Arabian sea Eastwards towards shelf
+        const isEastCoast = centerLon > 78.0;
+
+        const waveSpacing = Math.max(48, Math.min(95, 42 + wp * 4.5));
+        const numWavefronts = Math.ceil(Math.hypot(width, height) / waveSpacing) + 2;
+
+        ctx.save();
+        // Dynamic amplitude, line thickness and alpha driven by wave height Hs
+        const waveAmp = Math.min(22, 3.8 + wh * 4.2);
+        const waveLineWidth = Math.min(3.6, 1.4 + (wh / 3.0) * 1.8);
+        const baseAlpha = isVeto ? 0.70 : Math.min(0.55, 0.22 + (wh / 3.2) * 0.32);
+
+        for (let i = -2; i < numWavefronts; i++) {
+          const offset = ((i * waveSpacing + (wavePhaseRef.current / (2 * Math.PI)) * waveSpacing) % (numWavefronts * waveSpacing));
+          
+          ctx.beginPath();
+          const steps = 32;
+          let started = false;
+
+          for (let s = 0; s <= steps; s++) {
+            const t = s / steps;
+            let px: number, py: number;
+            if (isEastCoast) {
+              px = width - offset + Math.sin(t * Math.PI * 4.5 + wavePhaseRef.current) * waveAmp;
+              py = t * height;
+            } else {
+              px = offset + Math.sin(t * Math.PI * 4.5 + wavePhaseRef.current) * waveAmp;
+              py = t * height;
+            }
+
+            if (!started) {
+              ctx.moveTo(px, py);
+              started = true;
+            } else {
+              ctx.lineTo(px, py);
+            }
+          }
+
+          // Render glowing swell crest
+          ctx.strokeStyle = isVeto
+            ? `rgba(254, 202, 202, ${baseAlpha * 0.9})`
+            : `rgba(186, 230, 253, ${baseAlpha * 0.85})`;
+          ctx.lineWidth = waveLineWidth;
+          ctx.lineCap = 'round';
+          ctx.stroke();
+
+          // Outer seafoam glow
+          ctx.strokeStyle = isVeto
+            ? `rgba(239, 68, 68, ${baseAlpha * 0.35})`
+            : `rgba(56, 189, 248, ${baseAlpha * 0.32})`;
+          ctx.lineWidth = waveLineWidth + 2.5;
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+
+      // 2. RENDER WIND FLOW (Vector Streamlines with Particle Motion)
+      if (showWind && stations.length > 0) {
+        if (particlesRef.current.length === 0) {
+          particlesRef.current = Array.from({ length: PARTICLE_COUNT }, () => initParticle(bounds));
+        }
+
+        ctx.save();
+
+        particlesRef.current.forEach((p, idx) => {
+          const weather = interpolateWeather(p.lon, p.lat, stations);
+          const speed = weather.speed;
+          const u = weather.u;
+          const v = weather.v;
+
+          // Scale particle step proportionally to wind_speed_knots
+          const speedFactor = 0.000045 * (speed / 15.0);
+          p.lon += (u / Math.max(1, speed)) * speed * speedFactor;
+          p.lat += (v / Math.max(1, speed)) * speed * speedFactor;
+          p.age += 1;
+
+          try {
+            const projected = map.project([p.lon, p.lat]);
+            const px = projected.x;
+            const py = projected.y;
+
+            p.history.push([px, py]);
+            const maxHistory = Math.max(6, Math.min(16, Math.floor(speed * 0.55)));
+            if (p.history.length > maxHistory) {
+              p.history.shift();
+            }
+
+            if (
+              px < -25 || px > width + 25 ||
+              py < -25 || py > height + 25 ||
+              p.age > p.maxAge ||
+              p.lon < bounds.west || p.lon > bounds.east ||
+              p.lat < bounds.south || p.lat > bounds.north
+            ) {
+              particlesRef.current[idx] = initParticle(bounds);
+              return;
+            }
+
+            if (p.history.length >= 2) {
+              ctx.beginPath();
+              ctx.moveTo(p.history[0][0], p.history[0][1]);
+              for (let h = 1; h < p.history.length; h++) {
+                ctx.lineTo(p.history[h][0], p.history[h][1]);
+              }
+
+              const progress = p.age / p.maxAge;
+              const alpha = progress < 0.2
+                ? (progress / 0.2) * 0.78
+                : progress > 0.8
+                ? ((1 - progress) / 0.2) * 0.78
+                : 0.78;
+
+              ctx.strokeStyle = speed > 22
+                ? `rgba(239, 68, 68, ${alpha * 0.95})`
+                : speed > 15
+                ? `rgba(56, 189, 248, ${alpha})`
+                : `rgba(14, 165, 233, ${alpha * 0.85})`;
+
+              ctx.lineWidth = speed > 22 ? 2.4 : 1.7;
+              ctx.lineCap = 'round';
+              ctx.stroke();
+
+              const head = p.history[p.history.length - 1];
+              ctx.fillStyle = speed > 22 ? `rgba(254, 202, 202, ${alpha})` : `rgba(224, 242, 254, ${alpha})`;
+              ctx.beginPath();
+              ctx.arc(head[0], head[1], speed > 22 ? 1.8 : 1.2, 0, 2 * Math.PI);
+              ctx.fill();
+            }
+          } catch (e) {
+            particlesRef.current[idx] = initParticle(bounds);
+          }
+        });
+
+        ctx.restore();
+      }
+
+      ctx.restore();
+
+      animationFrameId = requestAnimationFrame(renderFrame);
+    };
+
+    animationFrameId = requestAnimationFrame(renderFrame);
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [layerVisibility.wind, layerVisibility.waves, isVeto]);
+
   const handleZoomIn = () => {
     mapInstanceRef.current?.zoomIn();
   };
@@ -1236,7 +1650,13 @@ export const MapView: React.FC<MapViewProps> = ({
         className="absolute inset-0 w-full h-full"
       />
 
-      {/* 2. Floating In-Map Control Cockpit HUD (Top Overlay) */}
+      {/* 2. Marine Wind & Wave Vector Streamlines / Swell Canvas Overlay */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 w-full h-full pointer-events-none z-10"
+      />
+
+      {/* 3. Floating In-Map Control Cockpit HUD (Top Overlay) */}
       <div className="absolute top-2.5 inset-x-2.5 z-20 pointer-events-none flex flex-col gap-2">
         
         {/* HUD Row 1: Engine Title, Live GIS Sync, Live Zoom Indicator & Basemap Switchers */}
@@ -1402,13 +1822,40 @@ export const MapView: React.FC<MapViewProps> = ({
 
             <button
               onClick={() => toggleLayer('wind')}
-              className={`h-6 px-2 rounded border transition font-bold ${
+              className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
                 layerVisibility.wind
                   ? 'bg-blue-950/90 text-blue-300 border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]'
                   : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
               }`}
+              title="Animated Marine Wind Vector Streamlines"
             >
-              WIND
+              <Wind className="w-2.5 h-2.5" />
+              <span>WIND FLOW</span>
+            </button>
+
+            <button
+              onClick={() => toggleLayer('waves')}
+              className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
+                layerVisibility.waves
+                  ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
+                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
+              }`}
+              title="Animated Coastal Wave Swell Propagation"
+            >
+              <Waves className="w-2.5 h-2.5" />
+              <span>WAVE FLOW</span>
+            </button>
+
+            <button
+              onClick={handleToggleBothWeather}
+              className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
+                isBothWeatherActive
+                  ? 'bg-gradient-to-r from-blue-900/90 to-cyan-900/90 text-cyan-200 border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
+                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
+              }`}
+              title="Display Both Wind Flow and Wave Swell Simultaneously"
+            >
+              <span>BOTH</span>
             </button>
 
             <button
@@ -1545,12 +1992,24 @@ export const MapView: React.FC<MapViewProps> = ({
         <div className="absolute bottom-3 right-3 z-20 bg-[#070f1e]/90 border border-[#1b2b45] px-3 py-1.5 rounded-md text-[10px] text-slate-300 flex items-center gap-3 backdrop-blur-xs font-mono shadow-lg">
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-            <span>PFZ Zone #12A</span>
+            <span>PFZ Zone</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
-            <span>Chennai Harbours (4)</span>
+            <span>Harbours</span>
           </div>
+          {layerVisibility.wind && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-sky-400 animate-pulse"></span>
+              <span className="text-sky-300">Wind Flow</span>
+            </div>
+          )}
+          {layerVisibility.waves && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-cyan-300 animate-pulse"></span>
+              <span className="text-cyan-300">Wave Swell</span>
+            </div>
+          )}
           <div className="flex items-center gap-1.5">
             <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
             <span>Vessels</span>

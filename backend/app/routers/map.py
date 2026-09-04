@@ -439,7 +439,7 @@ def get_map_layers(
 
     # 6. Sector-Specific Active AIS Vessels — Dynamically generated from get_vessels_telemetry
     try:
-        telemetry = get_vessels_telemetry(location=location, query=query)
+        telemetry = get_vessels_telemetry(location=location, query=query, is_veto=veto_active)
         vessel_list = telemetry.get("vessels", [])
     except Exception:
         vessel_list = []
@@ -540,15 +540,98 @@ def get_map_layers(
 @router.get("/vessels")
 def get_vessels_telemetry(
     location: Optional[str] = Query(None, description="Location filter e.g. Chennai, Vizag"),
-    query: Optional[str] = Query(None, description="Query string e.g. Chennai, Cyclone")
+    query: Optional[str] = Query(None, description="Query string e.g. Chennai, Cyclone"),
+    is_veto: Optional[bool] = Query(None, description="Safety veto active state")
 ):
     """
     Get active AIS vessel tracking telemetry and coastal fleet statistics.
     """
     sector_key = _resolve_sector_key(location, query, None)
-    is_cyclone_veto = sector_key == "visakhapatnam" or (query and "cyclone" in query.lower())
+    is_cyclone_veto = (is_veto is True) or sector_key == "visakhapatnam" or bool(query and "cyclone" in query.lower())
 
-    vessels_data = [
+    if is_cyclone_veto or sector_key == "visakhapatnam":
+        vessels_data = [
+            {
+                "id": "v_vzg_01",
+                "vessel_id": "IND-AP-01-MM-501",
+                "name": "MFV Sagar Kanya",
+                "type": "Deep Sea Trawler",
+                "badge": "🚨 CYCLONE RETURNING",
+                "badgeStyle": "bg-red-950 text-red-400 border-red-800",
+                "proximity": "1.2km from Visakhapatnam Harbour",
+                "lastPing": "Live AIS (Vizag Base)",
+                "isHazard": True,
+                "speed_knots": 2.1,
+                "heading_deg": 270,
+                "harbour": "Visakhapatnam Fishing Harbour",
+                "latitude": 17.6910,
+                "longitude": 83.3250,
+                "mmsi": "419005501",
+                "imo": "IMO 9825501",
+                "call_sign": "VW5501",
+                "crew_onboard": 6,
+                "fuel_level_pct": 55,
+                "engine_status": "Emergency Recall / Rough Seas",
+                "sea_depth_m": 24.0,
+                "vhf_channel": "CH 16 / Distress Channel",
+                "owner": "Vizag Trawlers Guild",
+                "status": "RETURNING TO PORT — CYCLONE RED WARNING ACTIVE"
+            },
+            {
+                "id": "v_vzg_02",
+                "vessel_id": "IND-AP-02-MM-502",
+                "name": "MFV Bay Sentinel",
+                "type": "Coastal Patrol Craft",
+                "badge": "🚨 CYCLONE HARBOUR DOCKED",
+                "badgeStyle": "bg-red-950 text-red-400 border-red-800",
+                "proximity": "Docked at Visakhapatnam Base",
+                "lastPing": "Live AIS (Vizag Base)",
+                "isHazard": True,
+                "speed_knots": 0.0,
+                "heading_deg": 0,
+                "harbour": "Visakhapatnam Fishing Harbour",
+                "latitude": 17.6974,
+                "longitude": 83.3032,
+                "mmsi": "419005502",
+                "imo": "IMO 9825502",
+                "call_sign": "VW5502",
+                "crew_onboard": 4,
+                "fuel_level_pct": 90,
+                "engine_status": "Moored / Engines Secured",
+                "sea_depth_m": 12.0,
+                "vhf_channel": "CH 16 (156.8 MHz)",
+                "owner": "Andhra Coastal Security",
+                "status": "DOCKED — CYCLONE EVACUATION PROTOCOL"
+            },
+            {
+                "id": "v_vzg_03",
+                "vessel_id": "IND-AP-03-MM-503",
+                "name": "MFV Matsya Tara",
+                "type": "Mechanized Craft",
+                "badge": "🚨 CYCLONE ALERT",
+                "badgeStyle": "bg-red-950 text-red-400 border-red-800",
+                "proximity": "3.5km East of Visakhapatnam",
+                "lastPing": "3 min ago",
+                "isHazard": True,
+                "speed_knots": 3.8,
+                "heading_deg": 285,
+                "harbour": "Visakhapatnam Fishing Harbour",
+                "latitude": 17.6850,
+                "longitude": 83.3410,
+                "mmsi": "419005503",
+                "imo": "IMO 9825503",
+                "call_sign": "VW5503",
+                "crew_onboard": 5,
+                "fuel_level_pct": 72,
+                "engine_status": "Emergency Transit",
+                "sea_depth_m": 35.0,
+                "vhf_channel": "CH 16 / Distress Channel",
+                "owner": "Vizag Artisanal Cooperative",
+                "status": "EMERGENCY TRANSIT — CYCLONE WARNING ACTIVE"
+            }
+        ]
+    else:
+        vessels_data = [
         {
             "id": "v_7740",
             "vessel_id": "IND-TN-7740",
