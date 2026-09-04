@@ -152,8 +152,8 @@ function getStyleForMode(mode: BasemapMode): any {
   return DARK_STYLE;
 }
 
-const DEFAULT_CENTER: [number, number] = [80.4600, 13.1500]; // Framing Kasimedu Harbour & PFZ #12A Route
-const DEFAULT_ZOOM = 9.2;
+const DEFAULT_CENTER: [number, number] = [80.4500, 13.1500]; // Framing Kasimedu Harbour & PFZ #12A Route
+const DEFAULT_ZOOM = 9.5;
 
 export const MapView: React.FC<MapViewProps> = ({
   isVeto = false,
