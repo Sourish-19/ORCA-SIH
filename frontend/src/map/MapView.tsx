@@ -915,10 +915,10 @@ export const MapView: React.FC<MapViewProps> = ({
     const visibilityVal = nextState ? 'visible' : 'none';
 
     const layerMap: Record<string, string[]> = {
-      pfz: ['orca-pfz-fill', 'orca-pfz-line', 'orca-pfz-points'],
+      pfz: ['orca-pfz-fill', 'orca-pfz-line', 'orca-pfz-points', 'orca-pfz-outer-ring'],
       sst: ['orca-sst-fill'],
       chl: ['orca-chl-fill'],
-      wind: ['orca-weather-circle'],
+      wind: ['orca-weather-circle', 'orca-weather-arrow'],
       hazards: ['orca-hazard-fill', 'orca-hazard-line'],
       route: ['orca-route-line'],
       vessels: ['orca-vessels-circle'],
@@ -933,6 +933,11 @@ export const MapView: React.FC<MapViewProps> = ({
         }
       } catch (e) {}
     });
+
+    // Re-sync HTML DOM Badges with updated layer visibility state
+    try {
+      attachOrcaDataLayers(map);
+    } catch (e) {}
   };
 
   const handleRecenter = () => {
