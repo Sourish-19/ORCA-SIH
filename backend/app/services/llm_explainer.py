@@ -227,6 +227,7 @@ def _call_groq_api(
     models_to_try = [
         "openai/gpt-oss-20b",
         getattr(app_config, "ORCA_LLM_MODEL", "openai/gpt-oss-20b"),
+        "llama-3.3-70b-versatile",
         "qwen/qwen3.6-27b",
     ]
     models_to_try = list(dict.fromkeys(models_to_try))
@@ -241,7 +242,9 @@ def _call_groq_api(
 
     for model_name in models_to_try:
         safe_log(f"Attempting Groq Model: {model_name}")
-        payload = {
+        
+        # Models known to support response_format json_object
+        payload: Dict[str, Any] = {
             "model": model_name,
             "messages": [
                 {"role": "system", "content": sys_p},
@@ -249,8 +252,9 @@ def _call_groq_api(
             ],
             "max_tokens": max(cfg.max_output_tokens, 800),
             "temperature": 0.1,
-            "response_format": {"type": "json_object"},
         }
+        if "gpt-oss" in model_name or "llama-3.3" in model_name or "mixtral" in model_name:
+            payload["response_format"] = {"type": "json_object"}
 
         try:
             req = urllib.request.Request(
