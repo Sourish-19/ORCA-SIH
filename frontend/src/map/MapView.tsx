@@ -773,7 +773,7 @@ export const MapView: React.FC<MapViewProps> = ({
           .setLngLat((e.features[0].geometry as any).coordinates)
           .setHTML(`
             <div style="font-family:sans-serif; padding:6px; color:#0f172a">
-              <strong style="color:#0284c7; font-size:12px">🚢 ${props.name}</strong>
+              <strong style="color:#0284c7; font-size:12px">🚢 ${props.vessel_id || props.code ? `${props.vessel_id || props.code} • ` : ''}${props.name}</strong>
               <div style="font-size:11px; margin-top:3px">
                 <div>Type: ${props.type}</div>
                 <div>Speed: <b>${props.speed_knots} kts</b> | Heading: <b>${props.heading_deg}°</b></div>

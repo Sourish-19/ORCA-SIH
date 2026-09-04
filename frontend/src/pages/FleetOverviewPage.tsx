@@ -255,8 +255,11 @@ export const FleetOverviewPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-100 font-mono">{v.vessel_id || v.code}</h4>
-                    <span className="text-[10px] text-slate-400 font-sans block">{v.name}</span>
+                    <h4 className="text-xs font-bold text-slate-100 font-mono flex items-center gap-1.5">
+                      <span className="text-sm">🚢</span>
+                      <span>{v.vessel_id || v.code}</span>
+                    </h4>
+                    <span className="text-[10px] text-slate-400 font-sans block mt-0.5">{v.name}</span>
                   </div>
                   <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${v.badgeStyle}`}>
                     {v.badge}
@@ -309,8 +312,9 @@ export const FleetOverviewPage: React.FC = () => {
                   </span>
                 </div>
                 <h3 className="text-lg font-black text-slate-100 font-mono mt-1 flex items-center gap-2">
-                  {selectedVessel.name}
-                  <span className="text-xs text-slate-400 font-normal">({selectedVessel.vessel_id || selectedVessel.code})</span>
+                  <span className="text-xl">🚢</span>
+                  <span className="text-cyan-300">{selectedVessel.vessel_id || selectedVessel.code}</span>
+                  <span className="text-xs text-slate-400 font-normal">({selectedVessel.name})</span>
                 </h3>
               </div>
               <button
