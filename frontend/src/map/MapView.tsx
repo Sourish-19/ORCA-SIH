@@ -320,10 +320,10 @@ export const MapView: React.FC<MapViewProps> = ({
             visibility: currentVis.ports !== false ? 'visible' : 'none'
           },
           paint: {
-            'circle-radius': 9,
+            'circle-radius': 10,
             'circle-color': '#0284c7',
-            'circle-stroke-width': 3,
-            'circle-stroke-color': '#ffffff'
+            'circle-stroke-width': 3.5,
+            'circle-stroke-color': '#000000'
           }
         });
       } catch (e) {}
@@ -344,7 +344,7 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'fill-color': '#10b981',
-            'fill-opacity': 0.45
+            'fill-opacity': 0.50
           }
         });
       } catch (e) {}
@@ -361,7 +361,7 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'line-color': '#059669',
-            'line-width': 3
+            'line-width': 3.5
           }
         });
       } catch (e) {}
@@ -378,8 +378,8 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'line-color': '#f59e0b',
-            'line-width': 3.5,
-            'line-dasharray': [2, 2]
+            'line-width': 4,
+            'line-dasharray': [3, 3]
           }
         });
       } catch (e) {}
@@ -395,9 +395,9 @@ export const MapView: React.FC<MapViewProps> = ({
             visibility: currentVis.pfz ? 'visible' : 'none'
           },
           paint: {
-            'circle-radius': 8,
+            'circle-radius': 9,
             'circle-color': '#0ea5e9',
-            'circle-stroke-width': 2.5,
+            'circle-stroke-width': 3,
             'circle-stroke-color': '#000000'
           }
         });
@@ -417,7 +417,7 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'fill-color': '#f59e0b',
-            'fill-opacity': 0.35
+            'fill-opacity': 0.45
           }
         });
       } catch (e) {}
@@ -435,7 +435,7 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'fill-color': '#06b6d4',
-            'fill-opacity': 0.35
+            'fill-opacity': 0.45
           }
         });
       } catch (e) {}
@@ -453,9 +453,9 @@ export const MapView: React.FC<MapViewProps> = ({
             visibility: currentVis.wind ? 'visible' : 'none'
           },
           paint: {
-            'circle-radius': 6,
+            'circle-radius': 8,
             'circle-color': '#38bdf8',
-            'circle-stroke-width': 2,
+            'circle-stroke-width': 2.5,
             'circle-stroke-color': '#ffffff'
           }
         });
@@ -471,7 +471,7 @@ export const MapView: React.FC<MapViewProps> = ({
           layout: {
             visibility: currentVis.wind ? 'visible' : 'none',
             'text-field': '➔',
-            'text-size': 18,
+            'text-size': 24,
             'text-rotate': ['get', 'wind_direction_deg'],
             'text-allow-overlap': true
           },
@@ -495,7 +495,7 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'fill-color': '#dc2626',
-            'fill-opacity': isVeto ? 0.48 : 0.25
+            'fill-opacity': isVeto ? 0.50 : 0.35
           }
         });
       } catch (e) {}
@@ -512,7 +512,7 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'line-color': '#ef4444',
-            'line-width': 3,
+            'line-width': 3.5,
             'line-dasharray': [4, 3]
           }
         });
@@ -531,9 +531,9 @@ export const MapView: React.FC<MapViewProps> = ({
             visibility: currentVis.vessels ? 'visible' : 'none'
           },
           paint: {
-            'circle-radius': 7,
+            'circle-radius': 8,
             'circle-color': '#0ea5e9',
-            'circle-stroke-width': 2.5,
+            'circle-stroke-width': 3,
             'circle-stroke-color': '#000000'
           }
         });
@@ -553,8 +553,8 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'line-color': isVeto ? '#ef4444' : '#06b6d4',
-            'line-width': 3.5,
-            'line-dasharray': [2, 2]
+            'line-width': 4.5,
+            'line-dasharray': [3, 3]
           }
         });
       } catch (e) {}
