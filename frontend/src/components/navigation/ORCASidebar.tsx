@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
   Cpu,
   Zap,
@@ -13,6 +13,16 @@ import {
 } from 'lucide-react';
 
 export const ORCASidebar: React.FC = () => {
+  const location = useLocation();
+  const pathname = location.pathname;
+
+  const isIntelligence = pathname === '/' || pathname === '/dashboard';
+  const isVessels = pathname === '/fleet-overview' || pathname === '/vessels';
+  const isAgentTrace = pathname === '/agent-execution';
+  const isMapControls = pathname === '/marine-map' || pathname === '/marine_map' || pathname === '/map' || pathname === '/map-controls';
+  const isSystemHealth = pathname === '/data-health';
+  const isSafetyVeto = pathname === '/safety-veto' || pathname === '/safety_veto';
+
   return (
     <aside className="fixed left-0 top-16 bottom-0 w-60 bg-surface-container-low border-r border-outline-variant flex flex-col justify-between p-4 z-40">
       
@@ -31,14 +41,12 @@ export const ORCASidebar: React.FC = () => {
         {/* Main Nav Items List */}
         <nav className="space-y-1 text-xs font-sans">
           <NavLink
-            to="/"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
-                isActive
-                  ? 'bg-secondary-container text-white shadow-md'
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-              }`
-            }
+            to="/dashboard"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
+              isIntelligence
+                ? 'bg-secondary-container text-white shadow-md'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`}
           >
             <Zap className="w-4 h-4 text-primary" />
             <span>INTELLIGENCE</span>
@@ -46,13 +54,11 @@ export const ORCASidebar: React.FC = () => {
 
           <NavLink
             to="/fleet-overview"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
-                isActive
-                  ? 'bg-secondary-container text-white shadow-md'
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-              }`
-            }
+            className={`flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
+              isVessels
+                ? 'bg-secondary-container text-white shadow-md'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`}
           >
             <Anchor className="w-4 h-4 text-primary" />
             <span>VESSELS</span>
@@ -60,13 +66,11 @@ export const ORCASidebar: React.FC = () => {
 
           <NavLink
             to="/agent-execution"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
-                isActive
-                  ? 'bg-secondary-container text-white shadow-md'
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-              }`
-            }
+            className={`flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
+              isAgentTrace
+                ? 'bg-secondary-container text-white shadow-md'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`}
           >
             <Cpu className="w-4 h-4 text-primary" />
             <span>AGENT TRACE</span>
@@ -74,13 +78,11 @@ export const ORCASidebar: React.FC = () => {
 
           <NavLink
             to="/marine-map"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
-                isActive
-                  ? 'bg-secondary-container text-white shadow-md'
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-              }`
-            }
+            className={`flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
+              isMapControls
+                ? 'bg-secondary-container text-white shadow-md'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`}
           >
             <MapIcon className="w-4 h-4 text-primary" />
             <span>MAP CONTROLS</span>
@@ -88,13 +90,11 @@ export const ORCASidebar: React.FC = () => {
 
           <NavLink
             to="/data-health"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
-                isActive
-                  ? 'bg-secondary-container text-white shadow-md'
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-              }`
-            }
+            className={`flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
+              isSystemHealth
+                ? 'bg-secondary-container text-white shadow-md'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`}
           >
             <Activity className="w-4 h-4 text-primary" />
             <span>SYSTEM HEALTH</span>
@@ -102,13 +102,11 @@ export const ORCASidebar: React.FC = () => {
 
           <NavLink
             to="/safety-veto"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
-                isActive
-                  ? 'bg-error-container text-on-error-container shadow-md'
-                  : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
-              }`
-            }
+            className={`flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
+              isSafetyVeto
+                ? 'bg-error-container text-on-error-container shadow-md'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`}
           >
             <ShieldAlert className="w-4 h-4 text-error" />
             <span>SAFETY VETO</span>

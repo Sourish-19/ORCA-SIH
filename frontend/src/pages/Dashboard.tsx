@@ -7,6 +7,7 @@ import { OceanTelemetryChart } from '../components/charts/OceanTelemetryChart';
 import { Mic, Send, HelpCircle, MapPin } from 'lucide-react';
 import { ORCAResponse } from '../types';
 import { resolveLocationFromText, ResolvedLocationResult } from '../utils/locationResolver';
+import { VoiceRecorder } from '../components/common/VoiceRecorder';
 
 interface DashboardProps {
   response: ORCAResponse | null;
@@ -195,68 +196,75 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
               <span className="text-[10px] font-bold text-slate-300 uppercase tracking-wider">
                 INTELLIGENCE QUERY
               </span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#060c16] text-slate-400 border border-[#1c2838] font-mono">
-                EN
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#060c16] text-cyan-400 border border-[#1c2838] font-mono font-bold">
+                {activePreset === 'scenario_03' ? 'TA' : 'EN'}
               </span>
             </div>
 
-            <form onSubmit={handleExecute} className="space-y-3">
-              <textarea
-                rows={3}
-                value={queryInput}
-                onChange={(e) => handleQueryChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Ask about fishing locations, hazards, sea conditions (e.g. Chennai, Vizag, Bangalore, Kochi)..."
-                className="w-full bg-[#060c16] border border-[#1c2838] text-xs text-slate-100 p-2.5 rounded-lg outline-none focus:ring-1 focus:ring-cyan-400 font-sans resize-none"
-              ></textarea>
+            <VoiceRecorder
+              language={activePreset === 'scenario_03' ? 'TA' : 'EN'}
+              initialText={queryInput}
+              onTranscriptChange={(txt) => {
+                setQueryInput(txt);
+                if ((Dashboard as any).handleQueryChange) {
+                  (Dashboard as any).handleQueryChange(txt);
+                }
+              }}
+              onSendQuery={(txt) => {
+                const trimmed = txt.trim() || 'what are the potential fishing zones near chennai';
+                setQueryInput(trimmed);
+                setSubmittedQuery(trimmed);
+                setSelectedZone(null);
 
-              <div className="flex items-center justify-between">
-                <button
-                  type="button"
-                  onClick={() => handleSelectPreset('scenario_03', 'நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?')}
-                  className="p-2 rounded-lg bg-[#060c16] text-slate-400 hover:text-cyan-400 border border-[#1c2838] transition"
-                >
-                  <Mic className="w-4 h-4" />
-                </button>
+                const resolved = resolveLocationFromText(trimmed) || resolveLocationFromText('chennai');
+                if (resolved) {
+                  setResolvedLocation(resolved);
+                  if (resolved.sectorId === 'visakhapatnam') {
+                    const lower = trimmed.toLowerCase();
+                    if (lower.includes('cyclone') || lower.includes('veto') || lower.includes('warning') || lower.includes('hazard')) {
+                      setActivePreset('scenario_02');
+                    } else {
+                      setActivePreset(null);
+                    }
+                  } else if (resolved.sectorId === 'chennai') {
+                    setActivePreset('scenario_01');
+                  } else {
+                    setActivePreset(null);
+                  }
+                }
 
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="px-4 py-2 bg-cyan-400 hover:bg-cyan-300 disabled:opacity-50 text-slate-950 font-extrabold text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 transition shadow-md shadow-cyan-400/20"
-                >
-                  <span>EXECUTE</span>
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              </div>
+                setExecuteTrigger(Date.now());
+                onQuerySubmit(trimmed);
+              }}
+            />
 
-              {/* Location Identification Pill (Active only after sending query / finding place in chatbox) */}
-              {resolvedLocation && (
-                <div className="p-2.5 rounded-lg bg-[#061224] border border-cyan-500/40 text-[11px] font-mono text-cyan-300 shadow-sm mt-1">
-                  <div className="font-bold flex items-center justify-between">
-                    <span className="flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-cyan-400" />
-                      <span>{resolvedLocation.isCoastal ? 'COASTAL FOCUS' : 'INLAND MAPPED TO COAST'}</span>
-                    </span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-200 border border-cyan-800">
-                      ZOOM {resolvedLocation.zoom} {resolvedLocation.sectorId === 'chennai' ? '(+20%)' : ''}
-                    </span>
-                  </div>
-                  <div className="text-slate-300 text-[10px] mt-1 leading-relaxed">
-                    {resolvedLocation.isCoastal ? (
-                      <>
-                        Identified <b className="text-cyan-200">{resolvedLocation.matchedPlace}</b>
-                        {resolvedLocation.confidence < 1 ? ` (spelling optimized from "${resolvedLocation.rawToken}")` : ''} • Coastal Sector Active.
-                      </>
-                    ) : (
-                      <>
-                        <b className="text-amber-300">{resolvedLocation.matchedPlace}</b> is an inland city
-                        {resolvedLocation.confidence < 1 ? ` (optimized from "${resolvedLocation.rawToken}")` : ''}. Zoomed into nearest coastal sector: <b className="text-cyan-200">{resolvedLocation.sectorName}</b>.
-                      </>
-                    )}
-                  </div>
+            {/* Location Identification Pill (Active only after sending query / finding place in chatbox) */}
+            {resolvedLocation && (
+              <div className="p-2.5 rounded-lg bg-[#061224] border border-cyan-500/40 text-[11px] font-mono text-cyan-300 shadow-sm mt-1">
+                <div className="font-bold flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                    <span>{resolvedLocation.isCoastal ? 'COASTAL FOCUS' : 'INLAND MAPPED TO COAST'}</span>
+                  </span>
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-200 border border-cyan-800">
+                    ZOOM {resolvedLocation.zoom} {resolvedLocation.sectorId === 'chennai' ? '(+20%)' : ''}
+                  </span>
                 </div>
-              )}
-            </form>
+                <div className="text-slate-300 text-[10px] mt-1 leading-relaxed">
+                  {resolvedLocation.isCoastal ? (
+                    <>
+                      Identified <b className="text-cyan-200">{resolvedLocation.matchedPlace}</b>
+                      {resolvedLocation.confidence < 1 ? ` (spelling optimized from "${resolvedLocation.rawToken}")` : ''} • Coastal Sector Active.
+                    </>
+                  ) : (
+                    <>
+                      <b className="text-amber-300">{resolvedLocation.matchedPlace}</b> is an inland city
+                      {resolvedLocation.confidence < 1 ? ` (optimized from "${resolvedLocation.rawToken}")` : ''}. Zoomed into nearest coastal sector: <b className="text-cyan-200">{resolvedLocation.sectorName}</b>.
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <AgentTracePanel agentTraces={response?.agent_traces || []} />
