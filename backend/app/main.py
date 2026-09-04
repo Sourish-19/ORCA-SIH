@@ -97,37 +97,37 @@ CONNECTORS_DB = {
         "id": "bhuvan",
         "name": "Bhuvan / ISRO",
         "role": "Indian Coastal & GIS Base Layers",
-        "status": "CACHED",
-        "lastUpdated": "45 min ago",
-        "dataAgeMinutes": 45,
+        "status": "LIVE",
+        "lastUpdated": "5 min ago",
+        "dataAgeMinutes": 5,
         "recordCount": 1250,
         "latencyMs": 210,
-        "healthPercent": 98.5,
-        "connectorStatus": "Cached Snapshot Active"
+        "healthPercent": 99.7,
+        "connectorStatus": "Healthy — Live Stream"
     },
     "noaa": {
         "id": "noaa",
         "name": "NOAA ERDDAP",
         "role": "Secondary Ocean Forecast Grids",
-        "status": "PAUSED",
-        "lastUpdated": "2 hours ago",
-        "dataAgeMinutes": 120,
+        "status": "LIVE",
+        "lastUpdated": "3 min ago",
+        "dataAgeMinutes": 3,
         "recordCount": 420,
-        "latencyMs": 450,
-        "healthPercent": 96.2,
-        "connectorStatus": "Standby / Manual Sync"
+        "latencyMs": 240,
+        "healthPercent": 99.5,
+        "connectorStatus": "Healthy — Live Stream"
     },
     "copernicus": {
         "id": "copernicus",
         "name": "Copernicus Marine",
         "role": "Global Ocean Circulation Model",
-        "status": "PAUSED",
-        "lastUpdated": "3 hours ago",
-        "dataAgeMinutes": 180,
+        "status": "LIVE",
+        "lastUpdated": "6 min ago",
+        "dataAgeMinutes": 6,
         "recordCount": 310,
-        "latencyMs": 390,
-        "healthPercent": 97.4,
-        "connectorStatus": "Standby / Subset Active"
+        "latencyMs": 280,
+        "healthPercent": 99.6,
+        "connectorStatus": "Healthy — Live Stream"
     }
 }
 
