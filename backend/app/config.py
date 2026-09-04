@@ -46,16 +46,13 @@ WEIGHT_WAVE = 0.10
 WEIGHT_ACCESSIBILITY = 0.05
 
 # =====================================================================
-# LLM Explainer (Google Gemini - free tier; narration only, never scoring)
+# LLM Explainer (Groq / Gemini API for real-time narration)
 # =====================================================================
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-# "gemini-flash-latest" is a stable alias Google keeps pointed at the current free
-# Flash model; pin a specific id (e.g. "gemini-3.6-flash") only if you need it.
-ORCA_LLM_MODEL = os.getenv("ORCA_LLM_MODEL", "gemini-flash-latest")
-# "auto" -> enabled iff GEMINI_API_KEY is set; "off" -> always use the template fallback;
-# "on" -> attempt the LLM even if the key looks unset (will fall back on failure).
+ORCA_LLM_PROVIDER = os.getenv("ORCA_LLM_PROVIDER", "groq")  # "groq", "gemini", or "auto"
+ORCA_LLM_MODEL = os.getenv("ORCA_LLM_MODEL", "qwen/qwen3.6-27b")
 ORCA_LLM_ENABLED = os.getenv("ORCA_LLM_ENABLED", "auto")
 ORCA_LLM_TIMEOUT_SECONDS = float(os.getenv("ORCA_LLM_TIMEOUT_SECONDS", "12.0"))
-# Generous headroom: "thinking" Flash models spend part of this budget before the
-# visible answer, and Tamil output is token-dense.
-ORCA_LLM_MAX_OUTPUT_TOKENS = int(os.getenv("ORCA_LLM_MAX_OUTPUT_TOKENS", "800"))
+ORCA_LLM_MAX_OUTPUT_TOKENS = int(os.getenv("ORCA_LLM_MAX_OUTPUT_TOKENS", "350"))
+

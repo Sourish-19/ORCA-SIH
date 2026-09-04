@@ -20,7 +20,7 @@ class LLMExplainerConfig(BaseModel):
 
     @classmethod
     def from_env(cls) -> "LLMExplainerConfig":
-        """Build config from app.config / environment. 'auto' -> on iff GEMINI_API_KEY set."""
+        """Build config from app.config / environment. 'auto' -> on if GROQ_API_KEY or GEMINI_API_KEY set."""
         from app import config as app_config
 
         setting = str(getattr(app_config, "ORCA_LLM_ENABLED", "auto")).strip().lower()
@@ -29,14 +29,15 @@ class LLMExplainerConfig(BaseModel):
         elif setting == "on":
             enabled = True
         else:  # "auto"
-            enabled = bool(getattr(app_config, "GEMINI_API_KEY", None))
+            enabled = bool(getattr(app_config, "GROQ_API_KEY", None)) or bool(getattr(app_config, "GEMINI_API_KEY", None))
 
         return cls(
-            model=getattr(app_config, "ORCA_LLM_MODEL", "gemini-2.0-flash"),
+            model=getattr(app_config, "ORCA_LLM_MODEL", "qwen/qwen3.6-27b"),
             enabled=enabled,
-            timeout_seconds=float(getattr(app_config, "ORCA_LLM_TIMEOUT_SECONDS", 8.0)),
-            max_output_tokens=int(getattr(app_config, "ORCA_LLM_MAX_OUTPUT_TOKENS", 400)),
+            timeout_seconds=float(getattr(app_config, "ORCA_LLM_TIMEOUT_SECONDS", 12.0)),
+            max_output_tokens=int(getattr(app_config, "ORCA_LLM_MAX_OUTPUT_TOKENS", 350)),
         )
+
 
 
 class DecisionExplanation(BaseModel):
