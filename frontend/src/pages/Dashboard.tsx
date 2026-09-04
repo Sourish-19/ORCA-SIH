@@ -4,7 +4,7 @@ import { SuitabilityDonut } from '../components/SuitabilityDonut';
 import { AgentTracePanel } from '../components/AgentTracePanel';
 import { KeyOceanDrivers } from '../components/KeyOceanDrivers';
 import { OceanTelemetryChart } from '../components/charts/OceanTelemetryChart';
-import { Mic, Send, HelpCircle, MapPin } from 'lucide-react';
+import { Mic, Send, HelpCircle, MapPin, Sparkles } from 'lucide-react';
 import { ORCAResponse } from '../types';
 import { resolveLocationFromText, ResolvedLocationResult } from '../utils/locationResolver';
 import { VoiceRecorder } from '../components/common/VoiceRecorder';
@@ -234,6 +234,24 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
                 onQuerySubmit(trimmed);
               }}
             />
+
+            {/* ORCA Grounded AI Answer Card */}
+            {response && (
+              <div className="bg-[#07111e] border border-cyan-500/60 p-3.5 rounded-xl space-y-2 shadow-xl animate-fadeIn font-mono">
+                <div className="flex items-center justify-between border-b border-[#1c2838] pb-1.5">
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>ORCA AI GROUNDED ANSWER</span>
+                  </span>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 font-bold">
+                    {response.intent?.primary_intent || 'VERIFIED'}
+                  </span>
+                </div>
+                <div className="text-xs text-slate-100 font-sans leading-relaxed whitespace-pre-line bg-[#040a14] p-3 rounded-lg border border-[#1b2b45]">
+                  {response.synthesized_answer || response.audio_narrative_text}
+                </div>
+              </div>
+            )}
 
             {/* Location Identification Pill (Active only after sending query / finding place in chatbox) */}
             {resolvedLocation && (

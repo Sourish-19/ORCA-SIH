@@ -515,10 +515,12 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response, onQuer
                     88% OSI Score
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                  {activeLang === 'TA'
-                    ? 'சென்னை கிழக்கே 35.2 கி.மீ தொலைவில் உயர் குளோரோபில் (1.4 mg/m³) மற்றும் 28.4°C கடல் வெப்பநிலை பதிவு செய்யப்பட்டுள்ளது. சூரை மீன் மற்றும் கானாங்கெளுத்தி அதிகளவில் கிடைக்க வாய்ப்புள்ளது.'
-                    : 'Optimal marine productivity detected 35.2 km East of Kasimedu Base. High Chlorophyll plume (1.4 mg/m³) and stable SST (28.4°C) indicate high pelagic fish aggregation.'}
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed whitespace-pre-line">
+                  {response?.synthesized_answer || response?.audio_narrative_text || (
+                    activeLang === 'TA'
+                      ? 'சென்னை கிழக்கே 35.2 கி.மீ தொலைவில் உயர் குளோரோபில் (1.4 mg/m³) மற்றும் 28.4°C கடல் வெப்பநிலை பதிவு செய்யப்பட்டுள்ளது.'
+                      : 'Optimal marine productivity detected 35.2 km East of Kasimedu Base.'
+                  )}
                 </p>
               </div>
             </div>
