@@ -541,8 +541,26 @@ export const MapView: React.FC<MapViewProps> = ({
       } catch (e) {}
     }
 
-    // 7. Navigation Route
+    // 7. Navigation Route (Dark Outline Casing + Glowing Cyan Dashed Path Line)
     setOrCreateSource('orca-route-src', routeData);
+    if (!map.getLayer('orca-route-casing')) {
+      try {
+        map.addLayer({
+          id: 'orca-route-casing',
+          type: 'line',
+          source: 'orca-route-src',
+          layout: {
+            visibility: currentVis.route ? 'visible' : 'none'
+          },
+          paint: {
+            'line-color': '#000000',
+            'line-width': 8,
+            'line-opacity': 0.85
+          }
+        });
+      } catch (e) {}
+    }
+
     if (!map.getLayer('orca-route-line')) {
       try {
         map.addLayer({
@@ -554,7 +572,7 @@ export const MapView: React.FC<MapViewProps> = ({
           },
           paint: {
             'line-color': isVeto ? '#ef4444' : '#06b6d4',
-            'line-width': 4.5,
+            'line-width': 5,
             'line-dasharray': [3, 3]
           }
         });
@@ -571,6 +589,7 @@ export const MapView: React.FC<MapViewProps> = ({
       'orca-pfz-line',
       'orca-pfz-outer-ring',
       'orca-pfz-points',
+      'orca-route-casing',
       'orca-route-line',
       'orca-weather-circle',
       'orca-weather-arrow',
@@ -605,6 +624,20 @@ export const MapView: React.FC<MapViewProps> = ({
           .setLngLat([80.2974, 13.1258])
           .addTo(map);
         domMarkersRef.current.push(m);
+      }
+
+      // Navigation Route HTML Badge Pin
+      if (currentVis.route) {
+        const routeEl = document.createElement('div');
+        routeEl.innerHTML = `
+          <div style="background:#0891b2; color:#ffffff; padding:5px 11px; border-radius:14px; border:2px solid #67e8f9; font-family:monospace; font-weight:900; font-size:11px; box-shadow:0 0 16px rgba(6,182,212,0.85); display:flex; align-items:center; gap:5px; white-space:nowrap; cursor:pointer">
+            ⛵ Kasimedu ➔ PFZ #12A Route (35.2 km, 85° E)
+          </div>
+        `;
+        const rm = new Marker({ element: routeEl, anchor: 'center' })
+          .setLngLat([80.4500, 13.1500])
+          .addTo(map);
+        domMarkersRef.current.push(rm);
       }
 
       // PFZ #12A Target HTML Marker
@@ -920,7 +953,7 @@ export const MapView: React.FC<MapViewProps> = ({
       chl: ['orca-chl-fill'],
       wind: ['orca-weather-circle', 'orca-weather-arrow'],
       hazards: ['orca-hazard-fill', 'orca-hazard-line'],
-      route: ['orca-route-line'],
+      route: ['orca-route-line', 'orca-route-casing'],
       vessels: ['orca-vessels-circle'],
       ports: ['orca-landing-centres-circle']
     };
