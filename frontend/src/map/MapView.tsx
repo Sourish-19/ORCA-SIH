@@ -259,6 +259,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
       if (map && map.isStyleLoaded()) {
         updateMapSourcesWithData(map, data);
+        attachOrcaDataLayers(map);
       }
     } catch (err) {
       console.warn('[ORCA MAP] Backend sync fallback to local GeoJSON:', err);

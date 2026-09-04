@@ -437,137 +437,52 @@ def get_map_layers(
                     }
                 })
 
-    # 6. Sector-Specific Active AIS Vessels
-    vessels_by_sector = {
-        "chennai": [
-            {
-                "type": "Feature",
-                "properties": {
-                    "vessel_id": "IND-TN-1906",
-                    "name": "SANMAR SNEHA",
-                    "type": "Live AIS Craft",
-                    "speed_knots": 5.2,
-                    "heading_deg": 95,
-                    "status": "Active Coastal Operations",
-                    "harbour": "Kasimedu Harbour"
-                },
-                "geometry": {"type": "Point", "coordinates": [80.3753, 13.0952]}
+    # 6. Sector-Specific Active AIS Vessels — Dynamically generated from get_vessels_telemetry
+    try:
+        telemetry = get_vessels_telemetry(location=location, query=query)
+        vessel_list = telemetry.get("vessels", [])
+    except Exception:
+        vessel_list = []
+
+    vessel_features = []
+    for v in vessel_list:
+        v_id = v.get("vessel_id") or v.get("id") or "IND-TN-1906"
+        name = v.get("name") or v_id
+        v_type = v.get("type") or "Coastal Vessel"
+        sog = float(v.get("speed_knots", 0.0))
+        cog = float(v.get("heading_deg", 0))
+        status = v.get("status") or "Active in sector"
+        harbour = v.get("harbour") or "Kasimedu Harbour"
+        is_hz = bool(v.get("isHazard")) or "HAZARD" in str(status).upper() or "ALERT" in str(status).upper()
+        
+        lat = float(v.get("latitude", 13.1120))
+        lon = float(v.get("longitude", 80.3950))
+        
+        # Ensure coordinates stay in marine sea area (longitude >= 80.3500)
+        if sector_key == "chennai":
+            safe_lon = max(80.3500, lon)
+            safe_lat = max(12.8500, min(13.6000, lat))
+        else:
+            safe_lon = lon
+            safe_lat = lat
+
+        vessel_features.append({
+            "type": "Feature",
+            "properties": {
+                "vessel_id": v_id,
+                "name": name,
+                "type": v_type,
+                "speed_knots": sog,
+                "heading_deg": cog,
+                "status": status,
+                "harbour": harbour,
+                "isHazard": is_hz
             },
-            {
-                "type": "Feature",
-                "properties": {
-                    "vessel_id": "IND-TN-7740",
-                    "name": "HAN HUI",
-                    "type": "Mechanized Trawler",
-                    "speed_knots": 0.0,
-                    "heading_deg": 0,
-                    "status": "⚠️ HAZARD ADVISORY ACTIVE",
-                    "harbour": "Kasimedu Harbour",
-                    "isHazard": True
-                },
-                "geometry": {"type": "Point", "coordinates": [80.3950, 13.1120]}
-            },
-            {
-                "type": "Feature",
-                "properties": {
-                    "vessel_id": "IND-TN-02-MM-104",
-                    "name": "MFV Sea Queen",
-                    "type": "Deep Sea Mechanized Trawler",
-                    "speed_knots": 8.5,
-                    "heading_deg": 105,
-                    "status": "Active Fishing inside PFZ #12A",
-                    "harbour": "Kasimedu Harbour"
-                },
-                "geometry": {"type": "Point", "coordinates": [80.5500, 13.2300]}
-            },
-            {
-                "type": "Feature",
-                "properties": {
-                    "vessel_id": "IND-TN-05-MM-302",
-                    "name": "MFV Chennai Sentinel",
-                    "type": "Mechanized Trawler",
-                    "speed_knots": 4.1,
-                    "heading_deg": 290,
-                    "status": "⚠️ GALE ADVISORY NEARSHORE",
-                    "harbour": "Kasimedu Harbour",
-                    "isHazard": True
-                },
-                "geometry": {"type": "Point", "coordinates": [80.3800, 13.1800]}
-            },
-            {
-                "type": "Feature",
-                "properties": {
-                    "vessel_id": "IND-TN-01-MM-088",
-                    "name": "MFV Blue Marlin",
-                    "type": "Gillnetter",
-                    "speed_knots": 6.2,
-                    "heading_deg": 120,
-                    "status": "Transit to PFZ Zone",
-                    "harbour": "Kasimedu Harbour"
-                },
-                "geometry": {"type": "Point", "coordinates": [80.4510, 12.9510]}
+            "geometry": {
+                "type": "Point",
+                "coordinates": [safe_lon, safe_lat]
             }
-        ],
-        "visakhapatnam": [
-            {
-                "type": "Feature",
-                "properties": {
-                    "vessel_id": "IND-AP-01-FD-302",
-                    "name": "MFV Sagar Kanya",
-                    "type": "Motorized Gillnetter",
-                    "speed_knots": 0.0,
-                    "heading_deg": 0,
-                    "status": "DOCKED (Severe Cyclone Warning Active)",
-                    "harbour": "Visakhapatnam Fishing Harbour"
-                },
-                "geometry": {"type": "Point", "coordinates": [83.3032, 17.6974]}
-            },
-            {
-                "type": "Feature",
-                "properties": {
-                    "vessel_id": "IND-AP-05-MM-302",
-                    "name": "MFV Ocean Sentinel",
-                    "type": "Trawler",
-                    "speed_knots": 4.1,
-                    "heading_deg": 290,
-                    "status": "🚨 CYCLONE HAZARD ALERT — RETURNING TO PORT",
-                    "harbour": "Visakhapatnam Fishing Harbour"
-                },
-                "geometry": {"type": "Point", "coordinates": [83.4500, 17.4200]}
-            }
-        ],
-        "kochi": [
-            {
-                "type": "Feature",
-                "properties": {
-                    "vessel_id": "IND-KL-07-FD-511",
-                    "name": "MFV Matsya 09",
-                    "type": "Deep Sea Trawler",
-                    "speed_knots": 7.8,
-                    "heading_deg": 260,
-                    "status": "Active Harvesting in High CHL Plume",
-                    "harbour": "Munambam Fishing Harbour"
-                },
-                "geometry": {"type": "Point", "coordinates": [75.9200, 10.1500]}
-            }
-        ],
-        "mangalore": [
-            {
-                "type": "Feature",
-                "properties": {
-                    "vessel_id": "IND-KA-19-FD-401",
-                    "name": "MFV Karavali Star",
-                    "type": "Purse Seiner",
-                    "speed_knots": 5.5,
-                    "heading_deg": 235,
-                    "status": "Operating under Moderate Swell Caution",
-                    "harbour": "Old Mangalore Port Jetty"
-                },
-                "geometry": {"type": "Point", "coordinates": [74.6500, 12.8100]}
-            }
-        ]
-    }
-    vessel_features = vessels_by_sector.get(sector_key, vessels_by_sector["chennai"])
+        })
 
     # 7. Dynamic Navigation Route
     origin_pt = sector_info["harbour_coords"]
