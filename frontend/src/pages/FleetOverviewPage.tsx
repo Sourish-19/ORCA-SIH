@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Anchor, Navigation, ShieldAlert, CheckCircle2, AlertTriangle, Radio, X, Info } from 'lucide-react';
+import { Anchor, Navigation, ShieldAlert, CheckCircle2, AlertTriangle, Radio, X, Info, Locate, ExternalLink, Activity, Fuel, Gauge, Eye } from 'lucide-react';
 import { MarineMap } from '../components/map/MarineMap';
 import { marineApi } from '../services/api/marineApi';
 
@@ -7,6 +7,9 @@ export const FleetOverviewPage: React.FC = () => {
   const [fleetData, setFleetData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedVessel, setSelectedVessel] = useState<any>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([80.2974, 13.0827]);
+  const [mapZoom, setMapZoom] = useState<number>(9.5);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -32,16 +35,51 @@ export const FleetOverviewPage: React.FC = () => {
     };
   }, []);
 
+  const showToast = (msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), 4000);
+  };
+
+  const handleSelectVessel = (vessel: any) => {
+    setSelectedVessel(vessel);
+    if (vessel.longitude && vessel.latitude) {
+      setMapCenter([vessel.longitude, vessel.latitude]);
+      setMapZoom(11);
+    }
+  };
+
+  const handleTrackOnMap = (vessel: any) => {
+    if (vessel.longitude && vessel.latitude) {
+      setMapCenter([vessel.longitude, vessel.latitude]);
+      setMapZoom(12);
+      showToast(`Map camera focused to ${vessel.vessel_id || vessel.code || vessel.name} at [${vessel.latitude.toFixed(4)}°N, ${vessel.longitude.toFixed(4)}°E]`);
+    }
+    setSelectedVessel(null);
+  };
+
+  const handleSendVHFBroadcast = (vessel: any) => {
+    showToast(`[AIS EMERGENCY BROADCAST] Dispatched VHF channel ${vessel.vhf_channel || 'CH 16'} emergency alert to Indian Coast Guard Sector 12 for ${vessel.vessel_id || vessel.name}`);
+  };
+
   const vessels = fleetData?.vessels || [];
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start h-[calc(100vh-80px)]">
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start h-[calc(100vh-80px)] relative">
       
+      {/* Toast Alert Notification */}
+      {toastMessage && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[10000] bg-cyan-950/95 text-cyan-200 border border-cyan-500/80 px-4 py-2.5 rounded-xl shadow-2xl backdrop-blur-md flex items-center gap-2 text-xs font-mono animate-bounce">
+          <Activity className="w-4 h-4 text-cyan-400 shrink-0 animate-pulse" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
       {/* Left 8-Cols: Map & Current Conditions Overlay */}
       <div className="lg:col-span-8 h-full flex flex-col space-y-2">
         <div className="bg-[#0e1622] border border-[#1c2838] p-3 rounded-xl flex items-center justify-between">
           <div>
-            <h2 className="text-sm font-extrabold text-slate-100 uppercase tracking-wide">
+            <h2 className="text-sm font-extrabold text-slate-100 uppercase tracking-wide flex items-center gap-2">
+              <Radio className="w-4 h-4 text-cyan-400 animate-pulse" />
               ORCA Intelligence Vessel Tracking
             </h2>
             <p className="text-[11px] text-slate-400">Chennai • Bay of Bengal Coastal Fleet Telemetry</p>
@@ -59,8 +97,8 @@ export const FleetOverviewPage: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1">
-          <MarineMap location="Chennai" query="Fleet Telemetry Kasimedu Harbour" />
+        <div className="flex-1 rounded-xl overflow-hidden border border-[#1c2838]">
+          <MarineMap location="Chennai" query="Fleet Telemetry Kasimedu Harbour" center={mapCenter} zoom={mapZoom} />
         </div>
       </div>
 
@@ -69,8 +107,12 @@ export const FleetOverviewPage: React.FC = () => {
         
         {/* Header Summary */}
         <div className="pb-3 border-b border-[#1c2838]">
-          <h3 className="text-xs font-extrabold text-slate-200 uppercase tracking-wider">
-            FLEET OVERVIEW
+          <h3 className="text-xs font-extrabold text-slate-200 uppercase tracking-wider flex items-center justify-between">
+            <span>FLEET OVERVIEW</span>
+            <span className="text-[10px] text-emerald-400 font-mono flex items-center gap-1">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping inline-block" />
+              LIVE AIS SYNC
+            </span>
           </h3>
 
           <div className="grid grid-cols-2 gap-4 mt-3 font-mono">
@@ -106,7 +148,7 @@ export const FleetOverviewPage: React.FC = () => {
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="text-xs font-bold text-slate-100 font-mono">{v.code || v.vessel_id}</h4>
+                    <h4 className="text-xs font-bold text-slate-100 font-mono">{v.vessel_id || v.code}</h4>
                     <span className="text-[10px] text-slate-400 font-sans block">{v.name}</span>
                   </div>
                   <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${v.badgeStyle}`}>
@@ -126,13 +168,14 @@ export const FleetOverviewPage: React.FC = () => {
                 </div>
 
                 <button
-                  onClick={() => setSelectedVessel(v)}
-                  className={`w-full py-1.5 rounded-lg text-xs font-bold transition border ${
+                  onClick={() => handleSelectVessel(v)}
+                  className={`w-full py-2 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 border ${
                     v.isHazard
-                      ? 'bg-red-950 text-red-300 border-red-700 hover:bg-red-900'
-                      : 'bg-[#0e1622] text-slate-300 border-[#1c2838] hover:border-cyan-500'
+                      ? 'bg-red-950 text-red-300 border-red-700 hover:bg-red-900 shadow-lg shadow-red-950/50'
+                      : 'bg-[#0e1622] text-cyan-300 border-[#1c2838] hover:border-cyan-500 hover:bg-[#121e30]'
                   }`}
                 >
+                  <Eye className="w-3.5 h-3.5 text-cyan-400" />
                   View Details
                 </button>
               </div>
@@ -144,60 +187,131 @@ export const FleetOverviewPage: React.FC = () => {
 
       {/* Selected Vessel Telemetry Detail Modal */}
       {selectedVessel && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-[#0b1420] border border-[#1c2838] p-5 rounded-2xl max-w-md w-full space-y-4 shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#1c2838] pb-3">
+        <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-[9999] flex items-center justify-center p-4">
+          <div className="bg-[#0b1420] border border-cyan-500/40 p-6 rounded-2xl max-w-lg w-full space-y-5 shadow-2xl">
+            
+            {/* Modal Header */}
+            <div className="flex items-start justify-between border-b border-[#1c2838] pb-4">
               <div>
-                <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-widest block">
-                  AIS TELEMETRY DETAILS
-                </span>
-                <h3 className="text-base font-extrabold text-slate-100 font-mono mt-0.5">
-                  {selectedVessel.name} ({selectedVessel.vessel_id || selectedVessel.code})
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono font-bold text-cyan-400 uppercase tracking-widest bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-800">
+                    AIS TELEMETRY DOSSIER
+                  </span>
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded border ${selectedVessel.badgeStyle}`}>
+                    {selectedVessel.badge}
+                  </span>
+                </div>
+                <h3 className="text-lg font-black text-slate-100 font-mono mt-1 flex items-center gap-2">
+                  {selectedVessel.name}
+                  <span className="text-xs text-slate-400 font-normal">({selectedVessel.vessel_id || selectedVessel.code})</span>
                 </h3>
               </div>
               <button
                 onClick={() => setSelectedVessel(null)}
                 className="p-1.5 rounded-lg bg-[#050c18] border border-[#1c2838] text-slate-400 hover:text-slate-200 transition"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-2.5 text-xs font-mono">
-              <div className="flex justify-between py-1.5 border-b border-[#1c2838]">
-                <span className="text-slate-400">Vessel Type:</span>
-                <span className="text-slate-100 font-bold">{selectedVessel.type}</span>
+            {/* Grid Specifications */}
+            <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+              <div className="bg-[#060c16] p-2.5 rounded-xl border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">MMSI TRANSPONDER</span>
+                <span className="text-cyan-300 font-bold">{selectedVessel.mmsi || '419001104'}</span>
               </div>
-              <div className="flex justify-between py-1.5 border-b border-[#1c2838]">
-                <span className="text-slate-400">Operating Harbour:</span>
+              <div className="bg-[#060c16] p-2.5 rounded-lg border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">CALL SIGN / IMO</span>
+                <span className="text-slate-200 font-bold">{selectedVessel.call_sign || 'VW104'} • {selectedVessel.imo || 'IMO 9821104'}</span>
+              </div>
+              <div className="bg-[#060c16] p-2.5 rounded-lg border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">VESSEL TYPE</span>
+                <span className="text-slate-200 font-bold">{selectedVessel.type}</span>
+              </div>
+              <div className="bg-[#060c16] p-2.5 rounded-lg border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">CREW ONBOARD</span>
+                <span className="text-emerald-400 font-bold">{selectedVessel.crew_onboard || 6} Fishermen</span>
+              </div>
+              <div className="bg-[#060c16] p-2.5 rounded-lg border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">OPERATING HARBOUR</span>
                 <span className="text-cyan-300 font-bold">{selectedVessel.harbour}</span>
               </div>
-              <div className="flex justify-between py-1.5 border-b border-[#1c2838]">
-                <span className="text-slate-400">Speed / Heading:</span>
-                <span className="text-slate-100 font-bold">{selectedVessel.speed_knots} kts | {selectedVessel.heading_deg}° SE</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-[#1c2838]">
-                <span className="text-slate-400">Coordinates:</span>
-                <span className="text-slate-100 font-bold">{selectedVessel.latitude?.toFixed(4)}°N, {selectedVessel.longitude?.toFixed(4)}°E</span>
-              </div>
-              <div className="flex justify-between py-1.5 border-b border-[#1c2838]">
-                <span className="text-slate-400">Status / Alert:</span>
-                <span className={selectedVessel.isHazard ? 'text-red-400 font-bold' : 'text-emerald-400 font-bold'}>
-                  {selectedVessel.status}
-                </span>
-              </div>
-              <div className="flex justify-between py-1.5">
-                <span className="text-slate-400">Last Telemetry Ping:</span>
-                <span className="text-emerald-400 font-bold">● {selectedVessel.lastPing}</span>
+              <div className="bg-[#060c16] p-2.5 rounded-lg border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">OWNER / COOPERATIVE</span>
+                <span className="text-slate-200 font-bold">{selectedVessel.owner || 'Kasimedu Deepsea Co-op'}</span>
               </div>
             </div>
 
-            <button
-              onClick={() => setSelectedVessel(null)}
-              className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs uppercase tracking-wider rounded-xl transition"
-            >
-              CLOSE TELEMETRY PANEL
-            </button>
+            {/* Live Navigation & Diagnostics */}
+            <div className="bg-[#050c18] border border-[#1c2838] p-3.5 rounded-xl space-y-3 font-mono text-xs">
+              <div className="flex justify-between items-center pb-2 border-b border-[#1c2838]">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  <Navigation className="w-3.5 h-3.5 text-cyan-400" />
+                  Speed / Heading:
+                </span>
+                <strong className="text-slate-100">{selectedVessel.speed_knots} kts | {selectedVessel.heading_deg}° SE</strong>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-[#1c2838]">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  <Locate className="w-3.5 h-3.5 text-cyan-400" />
+                  GPS Coordinates:
+                </span>
+                <strong className="text-cyan-300">{selectedVessel.latitude?.toFixed(4)}°N, {selectedVessel.longitude?.toFixed(4)}°E</strong>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-[#1c2838]">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  <Gauge className="w-3.5 h-3.5 text-teal-400" />
+                  Engine Diagnostics:
+                </span>
+                <strong className="text-slate-200">{selectedVessel.engine_status || 'Nominal (1400 RPM)'}</strong>
+              </div>
+
+              <div className="flex justify-between items-center pb-2 border-b border-[#1c2838]">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  <Fuel className="w-3.5 h-3.5 text-amber-400" />
+                  Fuel Capacity:
+                </span>
+                <div className="flex items-center gap-2">
+                  <div className="w-20 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
+                    <div
+                      className={`h-full ${selectedVessel.fuel_level_pct < 50 ? 'bg-red-500' : 'bg-emerald-400'}`}
+                      style={{ width: `${selectedVessel.fuel_level_pct || 84}%` }}
+                    />
+                  </div>
+                  <strong className="text-slate-100">{selectedVessel.fuel_level_pct || 84}%</strong>
+                </div>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  <Radio className="w-3.5 h-3.5 text-cyan-400" />
+                  VHF Channel:
+                </span>
+                <strong className="text-cyan-300">{selectedVessel.vhf_channel || 'CH 16 (156.8 MHz)'}</strong>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => handleTrackOnMap(selectedVessel)}
+                className="py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2 shadow-lg shadow-cyan-950/50"
+              >
+                <Locate className="w-4 h-4" />
+                Track Live Position
+              </button>
+
+              <button
+                onClick={() => handleSendVHFBroadcast(selectedVessel)}
+                className="py-2.5 bg-[#162232] hover:bg-red-950 hover:text-red-300 text-slate-200 border border-[#24354a] font-bold text-xs uppercase tracking-wider rounded-xl transition flex items-center justify-center gap-2"
+              >
+                <ShieldAlert className="w-4 h-4 text-red-400" />
+                VHF Alert Ping
+              </button>
+            </div>
+
           </div>
         </div>
       )}

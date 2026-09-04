@@ -572,7 +572,17 @@ def get_vessels_telemetry(
             "heading_deg": 105,
             "harbour": "Kasimedu Harbour (Chennai)",
             "latitude": 13.1420,
-            "longitude": 80.5210
+            "longitude": 80.5210,
+            "mmsi": "419001104",
+            "imo": "IMO 9821104",
+            "call_sign": "VW104",
+            "crew_onboard": 7,
+            "fuel_level_pct": 84,
+            "engine_status": "Nominal (1400 RPM)",
+            "sea_depth_m": 32.4,
+            "vhf_channel": "CH 16 (156.8 MHz)",
+            "owner": "Kasimedu Deepsea Cooperative",
+            "status": "Active Fishing Operation (PFZ Zone #12A)"
         },
         {
             "id": "v_302",
@@ -588,7 +598,17 @@ def get_vessels_telemetry(
             "heading_deg": 290,
             "harbour": "Visakhapatnam Fishing Harbour",
             "latitude": 17.4200,
-            "longitude": 83.4500
+            "longitude": 83.4500,
+            "mmsi": "419003302",
+            "imo": "IMO 9823302",
+            "call_sign": "VW302",
+            "crew_onboard": 5,
+            "fuel_level_pct": 42,
+            "engine_status": "Heavy Rough Seas (850 RPM)",
+            "sea_depth_m": 48.0,
+            "vhf_channel": "CH 16 / Distress Channel",
+            "owner": "Bay Fishermen Alliance",
+            "status": "HAZARD ADVISORY: High Gale Warning Proximity"
         },
         {
             "id": "v_088",
@@ -604,7 +624,17 @@ def get_vessels_telemetry(
             "heading_deg": 120,
             "harbour": "Kasimedu Harbour (Chennai)",
             "latitude": 12.9510,
-            "longitude": 80.4510
+            "longitude": 80.4510,
+            "mmsi": "419001088",
+            "imo": "IMO 9821088",
+            "call_sign": "VW088",
+            "crew_onboard": 4,
+            "fuel_level_pct": 91,
+            "engine_status": "Cruising (1100 RPM)",
+            "sea_depth_m": 18.2,
+            "vhf_channel": "CH 14 (Port Operations)",
+            "owner": "Chennai Artisanal Fleet",
+            "status": "In Transit to Inshore Fishing Coordinates"
         },
         {
             "id": "v_211",
@@ -620,7 +650,17 @@ def get_vessels_telemetry(
             "heading_deg": 90,
             "harbour": "Kasimedu Harbour (Chennai)",
             "latitude": 13.1200,
-            "longitude": 80.3500
+            "longitude": 80.3500,
+            "mmsi": "419004211",
+            "imo": "IMO 9824211",
+            "call_sign": "VW211",
+            "crew_onboard": 3,
+            "fuel_level_pct": 78,
+            "engine_status": "Idle / Low Speed (700 RPM)",
+            "sea_depth_m": 12.0,
+            "vhf_channel": "CH 16 (156.8 MHz)",
+            "owner": "Royapuram Fishermen Society",
+            "status": "Returning to Kasimedu Base Jetty"
         }
     ]
 
