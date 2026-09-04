@@ -26,7 +26,43 @@ def run_synthesis_agent(
     """
     is_tamil = intent.detected_language.lower() in ("tamil", "ta")
 
+    if intent.primary_intent == "SPECIES_INQUIRY":
+        if is_tamil:
+            narrative = (
+                f"{intent.location_name} துறைமுகப் பகுதியில் வஞ்சரம் (Seer Fish), கானாங்கெளுத்தி (Mackerel), "
+                f"கவலை (Sardine), வவ்வால் (Pomfret), நெத்திலி (Anchovy), சங்கரா (Red Snapper), மற்றும் பாரை (Trevally) "
+                f"ஆகிய மீன் வகைகள் அதிகம் கிடைக்கும்."
+            )
+            full_answer = (
+                f"🐟 **{intent.location_name.upper()} துறைமுகப் பகுதியில் கிடைக்கும் முக்கிய மீன் வகைகள்**\n\n"
+                f"1. **வஞ்சரம் (Seer Fish / King Mackerel)** — அதிக சந்தை மதிப்பு கொண்ட மீன்\n"
+                f"2. **கானாங்கெளுத்தி (Indian Mackerel)** — தினசரி உணவிற்கான பிரதான மீன்\n"
+                f"3. **கவலை (Oil Sardine)** — கரையோரங்களில் திரளாக கிடைக்கும்\n"
+                f"4. **வவ்வால் (Silver & Black Pomfret)** — உயர்தர ருசியான மீன்\n"
+                f"5. **நெத்திலி (Anchovies)** — கரையோர ஆழமற்ற நீரில் கிடைக்கும்\n"
+                f"6. **சங்கரா (Red Snapper)** & **பாரை (Trevally)**\n"
+                f"7. **சூரை (Yellowfin Tuna)** — ஆழ்கடல் பகுதியில் கிடைக்கும்\n"
+            )
+        else:
+            narrative = (
+                f"Common fish species near {intent.location_name} Harbour include Seer Fish (Vanjaram), "
+                f"Indian Mackerel (Kanagurutha), Oil Sardines (Kavalai), Silver Pomfret (Vavval), "
+                f"Anchovies (Nethili), Red Snapper (Sankara), Trevally (Parai), and Yellowfin Tuna."
+            )
+            full_answer = (
+                f"🐟 **TARGET FISH SPECIES NEAR {intent.location_name.upper()} HARBOUR**\n\n"
+                f"1. **Seer Fish / King Mackerel (Vanjaram)** — Highly valued commercial pelagic species\n"
+                f"2. **Indian Mackerel (Kanagurutha)** — Abundant in coastal surface waters\n"
+                f"3. **Oil Sardine (Kavalai)** — Common schooling fish along INCOIS PFZ belts\n"
+                f"4. **Silver & Black Pomfret (Vavval)** — Premium market species in Bay of Bengal\n"
+                f"5. **Anchovies (Nethili)** — Plentiful near estuarine river mouths\n"
+                f"6. **Red Snapper (Sankara)** & **Trevally (Parai)** — Reef and coastal ledge species\n"
+                f"7. **Yellowfin Tuna** — Deeper offshore pelagic waters\n"
+            )
+        return full_answer, narrative
+
     if safety.veto_triggered:
+
         # Veto Response
         if is_tamil:
             narrative = (

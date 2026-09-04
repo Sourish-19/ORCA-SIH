@@ -47,8 +47,11 @@ def run_intent_agent(query: str, language_hint: str = "auto") -> StructuredInten
 
     # Activity / Intent type
     intent_type = "FISHING_RECOMMENDATION"
-    if "weather" in lowered or "wind" in lowered or "cyclone" in lowered:
+    if any(w in lowered for w in ["fish type", "fish species", "types of fish", "which fish", "what fish", "species", "meen vagai", "மீன் வகை", "vakai"]):
+        intent_type = "SPECIES_INQUIRY"
+    elif "weather" in lowered or "wind" in lowered or "cyclone" in lowered:
         intent_type = "HAZARD_INQUIRY"
+
 
     return StructuredIntent(
         raw_query=clean_query,
