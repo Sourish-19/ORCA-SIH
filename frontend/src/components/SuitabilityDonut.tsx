@@ -15,8 +15,8 @@ export const SuitabilityDonut: React.FC<SuitabilityDonutProps> = ({
   isVeto = false,
   onWhyThisZone
 }) => {
-  const rawScore = isVeto ? 0 : breakdown?.total_score || recommendation?.strength_score || 88;
-  const score = Math.min(92, Math.max(0, rawScore));
+  const rawScore = isVeto ? 0 : breakdown?.total_score ?? recommendation?.strength_score ?? 88;
+  const score = isVeto ? 0 : Math.round(rawScore);
   const sectorName = recommendation?.sector_name || 'Chennai Offshore East';
   const bearing = recommendation?.bearing_deg ? `${recommendation.bearing_deg}° SE` : '107° SE';
   const distance = recommendation?.distance_km ? `${recommendation.distance_km} km` : '38 km';

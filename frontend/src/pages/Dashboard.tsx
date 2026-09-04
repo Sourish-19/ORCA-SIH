@@ -174,7 +174,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
               selectedZone
                 ? {
                     zone_id: selectedZone.zone_id || 'zone_selected',
-                    total_score: Math.min(92, Math.max(50, Number(selectedZone.score) || 84)),
+                    total_score: Number(selectedZone.score) || 84,
                     pfz_contribution: 50,
                     chlorophyll_contribution: 18,
                     sst_contribution: 12,
@@ -196,7 +196,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
                     nearest_landing_centre: selectedZone.nearest_landing_centre || 'Kasimedu Harbour',
                     valid_from: new Date().toISOString(),
                     valid_until: new Date(Date.now() + 86400000).toISOString(),
-                    strength_score: Math.min(92, Math.max(50, Number(selectedZone.score) || 84)),
+                    strength_score: Number(selectedZone.score) || 84,
                     source: selectedZone.source || 'INCOIS',
                     fetched_at: new Date().toISOString()
                   }
