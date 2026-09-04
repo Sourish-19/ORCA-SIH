@@ -461,6 +461,109 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response, onQuer
 
       </div>
 
+      {/* Grounded Advisory & Recommendation Answer Card */}
+      <div className={`border p-5 rounded-2xl space-y-4 shadow-xl transition ${
+        isVeto
+          ? 'bg-red-950/30 border-red-500/80 shadow-red-950/50'
+          : 'bg-[#0b1420] border-cyan-500/50 shadow-cyan-950/30'
+      }`}>
+        <div className="flex items-center justify-between border-b border-[#1c2838] pb-3">
+          <div className="flex items-center gap-2">
+            <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded border uppercase tracking-wider ${
+              isVeto ? 'bg-red-950 text-red-300 border-red-800' : 'bg-cyan-950 text-cyan-300 border-cyan-800'
+            }`}>
+              {isVeto ? '🚨 SAFETY VETO RESULT' : '💡 SYNTHESIZED ADVISORY ANSWER'}
+            </span>
+            <span className="text-xs text-slate-400 font-mono">
+              ● Query: "{queryInput}"
+            </span>
+          </div>
+
+          <a
+            href={isVeto ? "/safety-veto" : "/recommendation"}
+            className="text-xs font-mono font-bold text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition"
+          >
+            <span>View Full Details</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </a>
+        </div>
+
+        {isVeto ? (
+          <div className="space-y-3 font-mono">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="w-6 h-6 text-red-400 shrink-0 mt-0.5 animate-bounce" />
+              <div>
+                <h3 className="text-base font-extrabold text-red-300">
+                  SAFETY VETO ACTIVE — DO NOT LAUNCH FISHING VESSELS
+                </h3>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  IMD Red Alert & Gale Warning Active off Visakhapatnam. Wind speeds exceeding 38 knots and 3.8m wave swells violate safety thresholds. All fishing vessels must remain safely anchored in port.
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2">
+              <div className="bg-[#050c18] p-2.5 rounded-lg border border-red-900/60">
+                <span className="text-slate-500 text-[10px] block">SAFETY OVERRIDE</span>
+                <strong className="text-red-400">VETO TRIGGERED</strong>
+              </div>
+              <div className="bg-[#050c18] p-2.5 rounded-lg border border-red-900/60">
+                <span className="text-slate-500 text-[10px] block">GALE WIND</span>
+                <strong className="text-red-400">38.5 Knots (High)</strong>
+              </div>
+              <div className="bg-[#050c18] p-2.5 rounded-lg border border-red-900/60">
+                <span className="text-slate-500 text-[10px] block">SWELL WAVE</span>
+                <strong className="text-red-400">3.8 Meters (Danger)</strong>
+              </div>
+              <div className="bg-[#050c18] p-2.5 rounded-lg border border-red-900/60">
+                <span className="text-slate-500 text-[10px] block">PORT ADVISORY</span>
+                <strong className="text-red-300">ANCHORED IN PORT</strong>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 font-mono">
+            <div className="flex items-start gap-3">
+              <ShieldCheck className="w-6 h-6 text-emerald-400 shrink-0 mt-0.5" />
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-extrabold text-slate-100">
+                    RECOMMENDED ZONE: Chennai Offshore East (PFZ Zone #12A)
+                  </h3>
+                  <span className="bg-emerald-950 text-emerald-300 text-xs px-2 py-0.5 rounded font-bold border border-emerald-800">
+                    88% OSI Score
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                  {activeLang === 'TA'
+                    ? 'சென்னை கிழக்கே 35.2 கி.மீ தொலைவில் உயர் குளோரோபில் (1.4 mg/m³) மற்றும் 28.4°C கடல் வெப்பநிலை பதிவு செய்யப்பட்டுள்ளது. சூரை மீன் மற்றும் கானாங்கெளுத்தி அதிகளவில் கிடைக்க வாய்ப்புள்ளது.'
+                    : 'Optimal marine productivity detected 35.2 km East of Kasimedu Base. High Chlorophyll plume (1.4 mg/m³) and stable SST (28.4°C) indicate high pelagic fish aggregation.'}
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs pt-2">
+              <div className="bg-[#050c18] p-2.5 rounded-lg border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">GPS COORDINATES</span>
+                <strong className="text-cyan-300">13.1420°N, 80.5210°E</strong>
+              </div>
+              <div className="bg-[#050c18] p-2.5 rounded-lg border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">TARGET SPECIES</span>
+                <strong className="text-emerald-400">Skipjack Tuna, Mackerel</strong>
+              </div>
+              <div className="bg-[#050c18] p-2.5 rounded-lg border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">HARBOUR DISTANCE</span>
+                <strong className="text-slate-200">35.2 km (Kasimedu Base)</strong>
+              </div>
+              <div className="bg-[#050c18] p-2.5 rounded-lg border border-[#1c2838]">
+                <span className="text-slate-500 text-[10px] block">SEA STATE</span>
+                <strong className="text-teal-300">Wave: 1.1m | Wind: 14kts</strong>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Bottom Metrics Summary Bar */}
       <div className="bg-[#0b1420] border border-[#1c2838] p-3.5 rounded-xl grid grid-cols-2 sm:grid-cols-5 gap-3 font-mono text-xs text-center">
         <div>
