@@ -154,34 +154,38 @@ export const VoiceRecorder: React.FC<VoiceRecorderProps> = ({
           className="w-full bg-transparent text-xs text-slate-100 font-bold outline-none resize-none placeholder:text-slate-500"
         />
 
-        {/* Action Button: Mic -> StopCircle -> Send */}
-        <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
+        {/* Action Buttons: Mic (always visible) + Send (when text present) */}
+        <div className="flex items-center gap-2 shrink-0 pt-0.5">
+          {/* Microphone / Stop Recording Button */}
           {isRecording ? (
             <button
               type="button"
               onClick={handleToggleRecord}
-              className="p-2 rounded-xl bg-red-950/80 text-red-500 border border-red-800 hover:bg-red-900 transition flex items-center justify-center shadow-lg shadow-red-950/60 group"
+              className="p-2.5 rounded-xl bg-red-950/90 text-red-500 border border-red-700/80 hover:bg-red-900 transition flex items-center justify-center shadow-lg shadow-red-950/80 group"
               title="Stop Recording"
             >
-              <StopCircle className="w-5 h-5 animate-pulse drop-shadow-[0_0_8px_rgba(239,68,68,0.8)]" />
-            </button>
-          ) : transcript.trim().length > 0 && onSendQuery ? (
-            <button
-              type="button"
-              onClick={handleSend}
-              className="p-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition flex items-center justify-center shadow-lg shadow-cyan-500/30"
-              title="Execute Query"
-            >
-              <ArrowUp className="w-4 h-4 stroke-[3]" />
+              <StopCircle className="w-5 h-5 animate-pulse drop-shadow-[0_0_10px_rgba(239,68,68,0.9)]" />
             </button>
           ) : (
             <button
               type="button"
               onClick={handleToggleRecord}
-              className="p-2 rounded-xl bg-[#0e1929] hover:bg-[#18273c] text-cyan-400 hover:text-cyan-300 border border-[#1c2838] hover:border-cyan-500/50 transition flex items-center justify-center"
+              className="p-2.5 rounded-xl bg-[#0e1929] hover:bg-[#18273c] text-cyan-400 hover:text-cyan-300 border border-[#1c2838] hover:border-cyan-500/50 transition flex items-center justify-center shadow group"
               title="Start Voice Recording"
             >
-              <Mic className="w-4 h-4 text-cyan-400" />
+              <Mic className="w-5 h-5 text-cyan-400 group-hover:scale-110 transition-transform" />
+            </button>
+          )}
+
+          {/* Send Query Button */}
+          {transcript.trim().length > 0 && onSendQuery && (
+            <button
+              type="button"
+              onClick={handleSend}
+              className="p-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 transition flex items-center justify-center shadow-lg shadow-cyan-500/30 font-bold hover:scale-105"
+              title="Execute Query"
+            >
+              <ArrowUp className="w-5 h-5 stroke-[3]" />
             </button>
           )}
         </div>
