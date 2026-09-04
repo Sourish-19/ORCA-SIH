@@ -408,15 +408,56 @@ def get_map_layers(
             {
                 "type": "Feature",
                 "properties": {
+                    "vessel_id": "IND-TN-1906",
+                    "name": "SANMAR SNEHA",
+                    "type": "Live AIS Craft",
+                    "speed_knots": 5.2,
+                    "heading_deg": 95,
+                    "status": "Active Coastal Operations",
+                    "harbour": "Kasimedu Harbour"
+                },
+                "geometry": {"type": "Point", "coordinates": [80.3753, 13.0952]}
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "vessel_id": "IND-TN-7740",
+                    "name": "HAN HUI",
+                    "type": "Mechanized Trawler",
+                    "speed_knots": 0.0,
+                    "heading_deg": 0,
+                    "status": "⚠️ HAZARD ADVISORY ACTIVE",
+                    "harbour": "Kasimedu Harbour",
+                    "isHazard": True
+                },
+                "geometry": {"type": "Point", "coordinates": [80.3950, 13.1120]}
+            },
+            {
+                "type": "Feature",
+                "properties": {
                     "vessel_id": "IND-TN-02-MM-104",
                     "name": "MFV Sea Queen",
                     "type": "Deep Sea Mechanized Trawler",
                     "speed_knots": 8.5,
                     "heading_deg": 105,
-                    "status": "Active Fishing inside PFZ",
+                    "status": "Active Fishing inside PFZ #12A",
                     "harbour": "Kasimedu Harbour"
                 },
                 "geometry": {"type": "Point", "coordinates": [80.5210, 13.1420]}
+            },
+            {
+                "type": "Feature",
+                "properties": {
+                    "vessel_id": "IND-TN-05-MM-302",
+                    "name": "MFV Chennai Sentinel",
+                    "type": "Mechanized Trawler",
+                    "speed_knots": 4.1,
+                    "heading_deg": 290,
+                    "status": "⚠️ GALE ADVISORY NEARSHORE",
+                    "harbour": "Kasimedu Harbour",
+                    "isHazard": True
+                },
+                "geometry": {"type": "Point", "coordinates": [80.3800, 13.1800]}
             },
             {
                 "type": "Feature",

@@ -691,18 +691,38 @@ export const MapView: React.FC<MapViewProps> = ({
         domMarkersRef.current.push(m100);
       }
 
-      // AIS Vessel MFV Sea Queen HTML Marker
+      // Live Vessel Map Badges — Renders 🚢 vessel_id on the map canvas for every vessel!
       if (currentVis.vessels) {
-        const vesselEl = document.createElement('div');
-        vesselEl.innerHTML = `
-          <div style="background:#0c4a6e; color:#7dd3fc; padding:4px 8px; border-radius:10px; border:1.5px solid #38bdf8; font-family:monospace; font-weight:bold; font-size:11px; box-shadow:0 4px 10px rgba(0,0,0,0.6); display:flex; align-items:center; gap:4px; white-space:nowrap">
-            🚢 MFV Sea Queen (8.5 kts)
-          </div>
-        `;
-        const vm = new Marker({ element: vesselEl, anchor: 'bottom' })
-          .setLngLat([80.5210, 13.1420])
-          .addTo(map);
-        domMarkersRef.current.push(vm);
+        const vFeatures = vesselData?.features && vesselData.features.length > 0 ? vesselData.features : [
+          { properties: { vessel_id: 'IND-TN-1906', name: 'SANMAR SNEHA', speed_knots: 5.2 }, geometry: { coordinates: [80.3753, 13.0952] } },
+          { properties: { vessel_id: 'IND-TN-7740', name: 'HAN HUI', speed_knots: 0.0, isHazard: true }, geometry: { coordinates: [80.3950, 13.1120] } },
+          { properties: { vessel_id: 'IND-TN-02-MM-104', name: 'MFV Sea Queen', speed_knots: 8.5 }, geometry: { coordinates: [80.5210, 13.1420] } },
+          { properties: { vessel_id: 'IND-TN-05-MM-302', name: 'MFV Chennai Sentinel', speed_knots: 4.1, isHazard: true }, geometry: { coordinates: [80.3800, 13.1800] } },
+          { properties: { vessel_id: 'IND-TN-01-MM-088', name: 'MFV Blue Marlin', speed_knots: 6.2 }, geometry: { coordinates: [80.4510, 12.9510] } }
+        ];
+
+        vFeatures.forEach((vf: any) => {
+          const props = vf.properties || {};
+          const coords = vf.geometry?.coordinates;
+          if (!coords || coords.length < 2) return;
+
+          const vId = props.vessel_id || props.code || props.name || 'IND-TN-1906';
+          const isHz = props.isHazard || props.status?.includes('HAZARD') || props.status?.includes('ALERT');
+
+          const vesselEl = document.createElement('div');
+          vesselEl.style.cursor = 'pointer';
+          vesselEl.innerHTML = `
+            <div style="background:${isHz ? '#7f1d1d' : '#0c4a6e'}; color:${isHz ? '#fca5a5' : '#7dd3fc'}; padding:3.5px 8px; border-radius:10px; border:1.5px solid ${isHz ? '#ef4444' : '#38bdf8'}; font-family:monospace; font-weight:900; font-size:11px; box-shadow:0 4px 12px rgba(0,0,0,0.7); display:flex; align-items:center; gap:4px; white-space:nowrap">
+              <span>${isHz ? '⚠️ 🚢' : '🚢'}</span>
+              <span>${vId}</span>
+            </div>
+          `;
+
+          const vm = new Marker({ element: vesselEl, anchor: 'bottom' })
+            .setLngLat([coords[0], coords[1]])
+            .addTo(map);
+          domMarkersRef.current.push(vm);
+        });
       }
 
       // SST Grid HTML Marker
