@@ -405,14 +405,14 @@ export const FleetOverviewPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Live Navigation & Diagnostics */}
+            {/* Live Navigation & AIS Telemetry */}
             <div className="bg-[#050c18] border border-[#1c2838] p-3.5 rounded-xl space-y-3 font-mono text-xs">
               <div className="flex justify-between items-center pb-2 border-b border-[#1c2838]">
                 <span className="text-slate-400 flex items-center gap-1.5">
                   <Navigation className="w-3.5 h-3.5 text-cyan-400" />
                   Speed / Heading:
                 </span>
-                <strong className="text-slate-100">{selectedVessel.speed_knots} kts | {selectedVessel.heading_deg}° SE</strong>
+                <strong className="text-slate-100">{selectedVessel.speed_knots} kts | {selectedVessel.heading_deg}°</strong>
               </div>
 
               <div className="flex justify-between items-center pb-2 border-b border-[#1c2838]">
@@ -425,34 +425,18 @@ export const FleetOverviewPage: React.FC = () => {
 
               <div className="flex justify-between items-center pb-2 border-b border-[#1c2838]">
                 <span className="text-slate-400 flex items-center gap-1.5">
-                  <Gauge className="w-3.5 h-3.5 text-teal-400" />
-                  Engine Diagnostics:
-                </span>
-                <strong className="text-slate-200">{selectedVessel.engine_status || 'Nominal (1400 RPM)'}</strong>
-              </div>
-
-              <div className="flex justify-between items-center pb-2 border-b border-[#1c2838]">
-                <span className="text-slate-400 flex items-center gap-1.5">
-                  <Fuel className="w-3.5 h-3.5 text-amber-400" />
-                  Fuel Capacity:
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="w-20 bg-slate-800 rounded-full h-2 overflow-hidden border border-slate-700">
-                    <div
-                      className={`h-full ${selectedVessel.fuel_level_pct < 50 ? 'bg-red-500' : 'bg-emerald-400'}`}
-                      style={{ width: `${selectedVessel.fuel_level_pct || 84}%` }}
-                    />
-                  </div>
-                  <strong className="text-slate-100">{selectedVessel.fuel_level_pct || 84}%</strong>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center">
-                <span className="text-slate-400 flex items-center gap-1.5">
                   <Radio className="w-3.5 h-3.5 text-cyan-400" />
                   VHF Channel:
                 </span>
                 <strong className="text-cyan-300">{selectedVessel.vhf_channel || 'CH 16 (156.8 MHz)'}</strong>
+              </div>
+
+              <div className="flex justify-between items-center">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-emerald-400" />
+                  Last Telemetry Sync:
+                </span>
+                <strong className="text-emerald-400">● {selectedVessel.lastPing || 'Just now'}</strong>
               </div>
             </div>
 

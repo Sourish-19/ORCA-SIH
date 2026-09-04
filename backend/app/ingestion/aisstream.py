@@ -75,12 +75,7 @@ def _parse_ais_message(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             "longitude": float_lon,
             "imo": f"IMO-{mmsi}",
             "call_sign": f"VW{str(mmsi)[-3:]}",
-            "crew_onboard": 6,
-            "fuel_level_pct": 82,
-            "engine_status": "Active Fishing / Navigation",
-            "sea_depth_m": 24.5,
             "vhf_channel": "CH 16 (156.8 MHz)",
-            "owner": "Kasimedu Fishermen Cooperative",
             "status": "LIVE AIS PING — CHENNAI HARBOUR SECTOR"
         }
     except Exception as e:
