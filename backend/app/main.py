@@ -55,9 +55,122 @@ def read_root():
     }
 
 
+# Data Connectors State Store
+CONNECTORS_DB = {
+    "incois": {
+        "id": "incois",
+        "name": "INCOIS",
+        "role": "PFZ Advisory & Fisheries",
+        "status": "LIVE",
+        "lastUpdated": "4 min ago",
+        "dataAgeMinutes": 4,
+        "recordCount": 142,
+        "latencyMs": 185,
+        "healthPercent": 99.9,
+        "connectorStatus": "Healthy — 100% Sync"
+    },
+    "mosdac": {
+        "id": "mosdac",
+        "name": "MOSDAC / ISRO",
+        "role": "SST & Ocean Colour",
+        "status": "LIVE",
+        "lastUpdated": "12 min ago",
+        "dataAgeMinutes": 12,
+        "recordCount": 580,
+        "latencyMs": 320,
+        "healthPercent": 99.8,
+        "connectorStatus": "Healthy — Live Stream"
+    },
+    "imd": {
+        "id": "imd",
+        "name": "IMD",
+        "role": "Marine Weather & Gale Warnings",
+        "status": "LIVE",
+        "lastUpdated": "2 min ago",
+        "dataAgeMinutes": 2,
+        "recordCount": 89,
+        "latencyMs": 140,
+        "healthPercent": 100.0,
+        "connectorStatus": "Healthy — Active Sync"
+    },
+    "bhuvan": {
+        "id": "bhuvan",
+        "name": "Bhuvan / ISRO",
+        "role": "Indian Coastal & GIS Base Layers",
+        "status": "CACHED",
+        "lastUpdated": "45 min ago",
+        "dataAgeMinutes": 45,
+        "recordCount": 1250,
+        "latencyMs": 210,
+        "healthPercent": 98.5,
+        "connectorStatus": "Cached Snapshot Active"
+    },
+    "noaa": {
+        "id": "noaa",
+        "name": "NOAA ERDDAP",
+        "role": "Secondary Ocean Forecast Grids",
+        "status": "PAUSED",
+        "lastUpdated": "2 hours ago",
+        "dataAgeMinutes": 120,
+        "recordCount": 420,
+        "latencyMs": 450,
+        "healthPercent": 96.2,
+        "connectorStatus": "Standby / Manual Sync"
+    },
+    "copernicus": {
+        "id": "copernicus",
+        "name": "Copernicus Marine",
+        "role": "Global Ocean Circulation Model",
+        "status": "PAUSED",
+        "lastUpdated": "3 hours ago",
+        "dataAgeMinutes": 180,
+        "recordCount": 310,
+        "latencyMs": 390,
+        "healthPercent": 97.4,
+        "connectorStatus": "Standby / Subset Active"
+    }
+}
+
+
 @app.get("/api/health")
 def health_check():
-    return {"status": "HEALTHY", "data_plane": "LIVE/DEMO_ACTIVE"}
+    return {"status": "HEALTHY", "data_plane": "LIVE/DEMO_ACTIVE", "connectors": list(CONNECTORS_DB.values())}
+
+
+@app.get("/api/connectors")
+def get_connectors():
+    return list(CONNECTORS_DB.values())
+
+
+@app.post("/api/connectors/{connector_id}/toggle")
+def toggle_connector(connector_id: str):
+    if connector_id not in CONNECTORS_DB:
+        raise HTTPException(status_code=404, detail="Connector not found")
+    c = CONNECTORS_DB[connector_id]
+    if c["status"] == "LIVE":
+        c["status"] = "PAUSED"
+        c["connectorStatus"] = "Paused by operator"
+    else:
+        c["status"] = "LIVE"
+        c["lastUpdated"] = "Just now"
+        c["dataAgeMinutes"] = 0
+        c["connectorStatus"] = "Healthy — Live Stream"
+    return c
+
+
+@app.post("/api/connectors/{connector_id}/sync")
+def sync_connector(connector_id: str):
+    import random
+    if connector_id not in CONNECTORS_DB:
+        raise HTTPException(status_code=404, detail="Connector not found")
+    c = CONNECTORS_DB[connector_id]
+    c["status"] = "LIVE"
+    c["lastUpdated"] = "Just now"
+    c["dataAgeMinutes"] = 0
+    c["recordCount"] += random.randint(5, 20)
+    c["healthPercent"] = 100.0
+    c["connectorStatus"] = "Healthy — Sync Complete"
+    return c
 
 
 @app.post("/api/query", response_model=ORCAResponse)

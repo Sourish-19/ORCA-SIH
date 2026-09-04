@@ -48,6 +48,28 @@ export const marineApi = {
     return res.json();
   },
 
+  async getConnectors() {
+    const res = await fetch(`${API_BASE_URL}/api/connectors`);
+    if (!res.ok) throw new Error('Failed to fetch connectors');
+    return res.json();
+  },
+
+  async toggleConnector(connectorId: string) {
+    const res = await fetch(`${API_BASE_URL}/api/connectors/${connectorId}/toggle`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error(`Failed to toggle connector ${connectorId}`);
+    return res.json();
+  },
+
+  async syncConnector(connectorId: string) {
+    const res = await fetch(`${API_BASE_URL}/api/connectors/${connectorId}/sync`, {
+      method: 'POST'
+    });
+    if (!res.ok) throw new Error(`Failed to sync connector ${connectorId}`);
+    return res.json();
+  },
+
   /**
    * Fetches Map API configuration, supported basemaps, and sector definitions.
    */
