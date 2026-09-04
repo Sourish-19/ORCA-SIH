@@ -246,6 +246,105 @@ export function getVesselsGeoJSON() {
       {
         type: 'Feature' as const,
         properties: {
+          vessel_id: 'IND-TN-7740',
+          name: 'HAN HUI',
+          type: 'Mechanized Trawler',
+          speed_knots: 0.0,
+          heading_deg: 0,
+          status: '⚠️ HAZARD ADVISORY ACTIVE',
+          harbour: 'Kasimedu Harbour',
+          isHazard: true
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [80.3950, 13.1120]
+        }
+      },
+      {
+        type: 'Feature' as const,
+        properties: {
+          vessel_id: 'IND-TN-5404',
+          name: 'AL MANHAL',
+          type: 'Live AIS Trawler',
+          speed_knots: 0.0,
+          heading_deg: 0,
+          status: '⚠️ HAZARD ADVISORY ACTIVE',
+          harbour: 'Kasimedu Harbour',
+          isHazard: true
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [80.4120, 13.1550]
+        }
+      },
+      {
+        type: 'Feature' as const,
+        properties: {
+          vessel_id: 'IND-TN-5973',
+          name: 'Chennai Vessel MMSI-255815973',
+          type: 'Live AIS Craft',
+          speed_knots: 9.8,
+          heading_deg: 85,
+          status: 'Live AIS Sync',
+          harbour: 'Kasimedu Harbour'
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [80.3850, 13.0720]
+        }
+      },
+      {
+        type: 'Feature' as const,
+        properties: {
+          vessel_id: 'IND-TN-8000',
+          name: 'MAPLE GAS',
+          type: 'Mechanized Vessel',
+          speed_knots: 0.1,
+          heading_deg: 0,
+          status: '⚠️ HAZARD ADVISORY ACTIVE',
+          harbour: 'Kasimedu Harbour',
+          isHazard: true
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [80.4260, 13.2704]
+        }
+      },
+      {
+        type: 'Feature' as const,
+        properties: {
+          vessel_id: 'IND-TN-1906',
+          name: 'SANMAR SNEHA',
+          type: 'Live AIS Craft',
+          speed_knots: 5.2,
+          heading_deg: 95,
+          status: 'Active Coastal Operations',
+          harbour: 'Kasimedu Harbour'
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [80.3753, 13.0952]
+        }
+      },
+      {
+        type: 'Feature' as const,
+        properties: {
+          vessel_id: 'IND-TN-1342',
+          name: 'OCEAN BLISS',
+          type: 'Motorized Craft',
+          speed_knots: 5.8,
+          heading_deg: 100,
+          status: 'Active Marine Operations',
+          harbour: 'Kasimedu Harbour'
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [80.4000, 13.0500]
+        }
+      },
+      {
+        type: 'Feature' as const,
+        properties: {
           vessel_id: 'IND-TN-02-MM-104',
           name: 'MFV Sea Queen',
           type: 'Deep Sea Mechanized Trawler',
@@ -257,6 +356,23 @@ export function getVesselsGeoJSON() {
         geometry: {
           type: 'Point' as const,
           coordinates: [80.5500, 13.2300]
+        }
+      },
+      {
+        type: 'Feature' as const,
+        properties: {
+          vessel_id: 'IND-TN-05-MM-302',
+          name: 'MFV Chennai Sentinel',
+          type: 'Mechanized Trawler',
+          speed_knots: 4.1,
+          heading_deg: 290,
+          status: '⚠️ GALE ADVISORY NEARSHORE',
+          harbour: 'Kasimedu Harbour',
+          isHazard: true
+        },
+        geometry: {
+          type: 'Point' as const,
+          coordinates: [80.3800, 13.1800]
         }
       },
       {
@@ -278,17 +394,17 @@ export function getVesselsGeoJSON() {
       {
         type: 'Feature' as const,
         properties: {
-          vessel_id: 'IND-AP-05-MM-302',
-          name: 'MFV Ocean Sentinel',
-          type: 'Trawler',
-          speed_knots: 0.0,
-          heading_deg: 0,
-          status: '🚨 CYCLONE HAZARD ALERT — RETURNING TO PORT',
-          harbour: 'Visakhapatnam Fishing Harbour'
+          vessel_id: 'IND-TN-04-MM-211',
+          name: 'MFV Kasimedu Pride',
+          type: 'Motorized Craft',
+          speed_knots: 5.5,
+          heading_deg: 90,
+          status: 'Returning to Jetty',
+          harbour: 'Kasimedu Harbour'
         },
         geometry: {
           type: 'Point' as const,
-          coordinates: [83.4500, 17.4200]
+          coordinates: [80.3500, 13.1200]
         }
       }
     ]
