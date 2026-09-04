@@ -22,12 +22,16 @@ class UserQueryRequest(BaseModel):
 class StructuredIntent(BaseModel):
     raw_query: str
     detected_language: str
-    primary_intent: str  # "FISHING_RECOMMENDATION", "WEATHER_CHECK", "HAZARD_INQUIRY", "GENERAL_INFO"
+    primary_intent: str  # "FISHING_RECOMMENDATION", "WIND_INQUIRY", "WAVE_INQUIRY", "SAFETY_INQUIRY", "UNAVAILABLE_DATA_INQUIRY", "OUT_OF_DOMAIN_INQUIRY", etc.
+    requested_information: List[str] = Field(default_factory=list)
+    data_available_in_orca: bool = True
+    unavailable_parameter: Optional[str] = None
     location_name: str
     target_date_str: str
     target_datetime: datetime
     activity: str = "FISHING"
     radius_km: float = 50.0
+    confidence: float = 0.95
 
 
 class SuitabilityBreakdown(BaseModel):

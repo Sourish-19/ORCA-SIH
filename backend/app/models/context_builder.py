@@ -13,6 +13,7 @@ class VerifiedLocation:
     name: str
     latitude: float
     longitude: float
+    marine_basin: str = "Bay of Bengal"
 
 
 @dataclass
@@ -65,7 +66,7 @@ class VerifiedSpeciesInfo:
 class VerifiedContext:
     query: str
     detected_language: str  # "en" or "ta"
-    primary_intent: str  # "FISHING_RECOMMENDATION", "SPECIES_INQUIRY", "SAFETY_INQUIRY", "PARAMETER_INQUIRY", "HAZARD_INQUIRY"
+    primary_intent: str  # "FISHING_RECOMMENDATION", "SPECIES_INQUIRY", "SAFETY_INQUIRY", "PARAMETER_INQUIRY", "HAZARD_INQUIRY", "UNAVAILABLE_DATA_INQUIRY", "GENERAL_KNOWLEDGE_INQUIRY", "OUT_OF_DOMAIN_INQUIRY"
     location: VerifiedLocation
     pfz: VerifiedPFZ
     ocean: VerifiedOcean
@@ -74,6 +75,8 @@ class VerifiedContext:
     recommended_zone: Optional[VerifiedRecommendedZone] = None
     safety: VerifiedSafety = field(default_factory=lambda: VerifiedSafety(status="GO", veto_triggered=False, risk_level="LOW"))
     species: VerifiedSpeciesInfo = field(default_factory=lambda: VerifiedSpeciesInfo(available=False, list=[]))
+    data_available_in_orca: bool = True
+    unavailable_parameter: Optional[str] = None
     sources: List[str] = field(default_factory=lambda: ["INCOIS", "MOSDAC", "IMD", "AIS"])
 
     def to_dict(self) -> Dict[str, Any]:
@@ -82,10 +85,13 @@ class VerifiedContext:
             "query": self.query,
             "detected_language": self.detected_language,
             "primary_intent": self.primary_intent,
+            "data_available_in_orca": self.data_available_in_orca,
+            "unavailable_parameter": self.unavailable_parameter,
             "location": {
                 "name": self.location.name,
                 "latitude": self.location.latitude,
                 "longitude": self.location.longitude,
+                "marine_basin": getattr(self.location, "marine_basin", "Bay of Bengal"),
             },
             "pfz": {
                 "available": self.pfz.available,
