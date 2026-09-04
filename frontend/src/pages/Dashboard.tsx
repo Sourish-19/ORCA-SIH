@@ -205,10 +205,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
               language={activePreset === 'scenario_03' ? 'TA' : 'EN'}
               initialText={queryInput}
               onTranscriptChange={(txt) => {
-                setQueryInput(txt);
-                if ((Dashboard as any).handleQueryChange) {
-                  (Dashboard as any).handleQueryChange(txt);
-                }
+                handleQueryChange(txt);
               }}
               onSendQuery={(txt) => {
                 const trimmed = txt.trim() || 'what are the potential fishing zones near chennai';
