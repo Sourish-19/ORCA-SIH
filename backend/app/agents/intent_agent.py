@@ -40,7 +40,7 @@ def run_intent_agent(query: str, language_hint: str = "auto") -> StructuredInten
 
     # Language detection
     detected_lang = "English"
-    if any(word in lowered for word in ["nepo", "meen", "kadal", "vanga", "enge"]):
+    if any(word in lowered for word in ["nepo", "meen", "kadal", "vanga", "enge", "மீன்", "சென்னை", "நாளை", "பிடிக்கலாம்"]):
         detected_lang = "Tamil"
     elif any(word in lowered for word in ["machli", "kahan", "matsya"]):
         detected_lang = "Hindi"

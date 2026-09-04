@@ -428,10 +428,10 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
                 🌀 {lang === 'ta' ? 'விசாகப்பட்டினம் புயல்' : 'Vizag Cyclone Alert'}
               </button>
               <button
-                onClick={() => handleSelectPreset('Kochi nallu meen enga kedaikkum?')}
+                onClick={() => handleSelectPreset('நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?')}
                 className="px-2.5 py-1 rounded-lg bg-[#050c18] border border-[#1c2838] text-[11px] text-teal-300 hover:border-teal-400 font-medium"
               >
-                ⛵ {lang === 'ta' ? 'கொச்சி மண்டலம்' : 'Kochi Zone'}
+                🗣️ {lang === 'ta' ? 'தமிழ் குரல் வினா' : 'Tamil Voice Query'}
               </button>
             </div>
           </div>

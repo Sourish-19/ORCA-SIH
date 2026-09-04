@@ -42,5 +42,5 @@ npm run dev                   # Starts web dashboard at http://localhost:3000
 ## 🧪 Preset Demonstration Scenarios
 1. **Clear Weather Fishing**: *"Where should I fish tomorrow near Chennai?"* (Recommends Chennai Offshore East, 88% score).
 2. **Safety Veto Execution**: *"Can I take my boat out tomorrow near Vizag?"* (Triggers RED Cyclone Warning Veto).
-3. **Multilingual Query**: *"Kochi nallu meen enga kedaikkum?"* (Parses Tamil intent & recommends Munambam West).
+3. **Multilingual Query**: *"நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?"* (Parses Tamil intent & recommends Chennai Offshore East).
 4. **Moderate High Wave Swell**: *"What is the sea condition tomorrow near Mangalore?"* (Displays high wave surge caution).

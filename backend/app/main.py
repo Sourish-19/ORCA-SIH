@@ -96,10 +96,10 @@ def get_demo_scenarios():
         },
         {
             "id": "scenario_03",
-            "title": "Kochi Deep Sea High Productivity (Tamil Voice Query)",
-            "query": "Kochi nallu meen enga kedaikkum?",
-            "location": "Kochi",
-            "expected_outcome": "Multilingual Intent detected (Tamil), Munambam West recommended with high Chlorophyll signal."
+            "title": "Chennai Multilingual Advisory (Tamil Voice Query)",
+            "query": "நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?",
+            "location": "Chennai",
+            "expected_outcome": "Multilingual Intent detected (Tamil), Chennai Offshore East recommended with high Chlorophyll signal."
         },
         {
             "id": "scenario_04",

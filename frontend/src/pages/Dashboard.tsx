@@ -22,13 +22,13 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
 
   const activeLocation = React.useMemo(() => {
     if (activePreset === 'scenario_02') return 'Visakhapatnam';
-    if (activePreset === 'scenario_03') return 'Kochi';
+    if (activePreset === 'scenario_03') return 'Chennai';
     return response?.intent?.location_name || 'Chennai';
   }, [activePreset, response?.intent?.location_name]);
 
   const mapCenter: [number, number] = React.useMemo(() => {
     if (activePreset === 'scenario_02') return [83.3032, 17.6974];
-    if (activePreset === 'scenario_03') return [76.1683, 10.1812];
+    if (activePreset === 'scenario_03') return [80.2974, 13.0827];
     if (response?.top_recommendation?.center_lon && response?.top_recommendation?.center_lat) {
       return [response.top_recommendation.center_lon, response.top_recommendation.center_lat];
     }
@@ -44,8 +44,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
       const lower = queryInput.toLowerCase();
       if (lower.includes('vizag') || lower.includes('cyclone')) {
         setActivePreset('scenario_02');
-      } else if (lower.includes('kochi') || lower.includes('munambam')) {
-        setActivePreset('scenario_03');
+      } else if (lower.includes('chennai') || lower.includes('சென்னை') || lower.includes('தமிழ்')) {
+        setActivePreset('scenario_01');
       }
       onQuerySubmit(queryInput.trim());
     }
@@ -91,7 +91,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
           </button>
 
           <button
-            onClick={() => handleSelectPreset('scenario_03', 'Kochi nallu meen enga kedaikkum?')}
+            onClick={() => handleSelectPreset('scenario_03', 'நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?')}
             className={`px-3 py-1.5 rounded-md text-xs font-bold font-mono transition uppercase ${
               activePreset === 'scenario_03'
                 ? 'bg-teal-500 text-slate-950 shadow-md shadow-teal-500/30 border border-teal-400'
@@ -129,7 +129,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
               <div className="flex items-center justify-between">
                 <button
                   type="button"
-                  onClick={() => handleSelectPreset('scenario_03', 'Kochi nallu meen enga kedaikkum?')}
+                  onClick={() => handleSelectPreset('scenario_03', 'நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?')}
                   className="p-2 rounded-lg bg-[#060c16] text-slate-400 hover:text-cyan-400 border border-[#1c2838] transition"
                 >
                   <Mic className="w-4 h-4" />
