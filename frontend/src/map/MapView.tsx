@@ -1782,167 +1782,42 @@ export const MapView: React.FC<MapViewProps> = ({
           </div>
         </div>
 
-        {/* HUD Row 2: Marine Layer Controls & Quick Scenario Presets */}
-        <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 bg-[#070f1e]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#1b2b45]/70 shadow-lg">
-          
-          {/* Layer Toggles */}
-          <div className="flex flex-wrap items-center gap-1 text-[10px] font-mono">
-            <button
-              onClick={() => toggleLayer('pfz')}
-              className={`h-6 px-2 rounded border transition font-bold ${
-                layerVisibility.pfz
-                  ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-            >
-              PFZ
-            </button>
+        {/* HUD Row 2: Marine Layer Controls (Fixed width tightly wrapping ONLY WIND FLOW, WAVE FLOW, RECENTER) */}
+        <div className="pointer-events-auto w-fit flex items-center gap-1 bg-[#070f1e]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#1b2b45]/70 shadow-lg text-[10px] font-mono">
+          <button
+            onClick={() => toggleLayer('wind')}
+            className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
+              layerVisibility.wind
+                ? 'bg-blue-950/90 text-blue-300 border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]'
+                : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
+            }`}
+            title="Animated Marine Wind Vector Streamlines"
+          >
+            <Wind className="w-3 h-3 shrink-0" />
+            <span>WIND FLOW</span>
+          </button>
 
-            <button
-              onClick={() => toggleLayer('sst')}
-              className={`h-6 px-2 rounded border transition font-bold ${
-                layerVisibility.sst
-                  ? 'bg-amber-950/90 text-amber-300 border-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-            >
-              SST
-            </button>
+          <button
+            onClick={() => toggleLayer('waves')}
+            className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
+              layerVisibility.waves
+                ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
+                : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
+            }`}
+            title="Animated Coastal Wave Swell Propagation"
+          >
+            <Waves className="w-3 h-3 shrink-0" />
+            <span>WAVE FLOW</span>
+          </button>
 
-            <button
-              onClick={() => toggleLayer('chl')}
-              className={`h-6 px-2 rounded border transition font-bold ${
-                layerVisibility.chl
-                  ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-            >
-              CHL
-            </button>
-
-            <button
-              onClick={() => toggleLayer('wind')}
-              className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
-                layerVisibility.wind
-                  ? 'bg-blue-950/90 text-blue-300 border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-              title="Animated Marine Wind Vector Streamlines"
-            >
-              <Wind className="w-2.5 h-2.5" />
-              <span>WIND FLOW</span>
-            </button>
-
-            <button
-              onClick={() => toggleLayer('waves')}
-              className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
-                layerVisibility.waves
-                  ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-              title="Animated Coastal Wave Swell Propagation"
-            >
-              <Waves className="w-2.5 h-2.5" />
-              <span>WAVE FLOW</span>
-            </button>
-
-            <button
-              onClick={handleToggleBothWeather}
-              className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
-                isBothWeatherActive
-                  ? 'bg-gradient-to-r from-blue-900/90 to-cyan-900/90 text-cyan-200 border-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.4)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-              title="Display Both Wind Flow and Wave Swell Simultaneously"
-            >
-              <span>BOTH</span>
-            </button>
-
-            <button
-              onClick={() => toggleLayer('hazards')}
-              className={`h-6 px-2 rounded border transition font-bold ${
-                layerVisibility.hazards
-                  ? 'bg-red-950/90 text-red-300 border-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-            >
-              HAZARDS
-            </button>
-
-            <button
-              onClick={() => toggleLayer('vessels')}
-              className={`h-6 px-2 rounded border transition font-bold ${
-                layerVisibility.vessels
-                  ? 'bg-sky-950/90 text-sky-300 border-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.3)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-            >
-              VESSELS
-            </button>
-
-            <button
-              onClick={() => toggleLayer('route')}
-              className={`h-6 px-2 rounded border transition font-bold ${
-                layerVisibility.route
-                  ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-            >
-              ROUTE
-            </button>
-
-            <button
-              onClick={() => toggleLayer('ports')}
-              className={`h-6 px-2 rounded border transition font-bold ${
-                layerVisibility.ports
-                  ? 'bg-sky-950/90 text-sky-300 border-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.3)]'
-                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
-              }`}
-            >
-              HARBOURS
-            </button>
-          </div>
-
-          {/* Right: Quick Scenario Preset Buttons inside Map & Recenter */}
-          <div className="flex items-center gap-1.5 text-[10px] font-mono">
-            {onSelectPreset && (
-              <div className="hidden sm:flex items-center gap-1 border-r border-[#1b2b45] pr-1.5">
-                <button
-                  onClick={() => onSelectPreset('scenario_01', 'Where should I fish tomorrow near Chennai?')}
-                  className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
-                    activePreset === 'scenario_01'
-                      ? 'bg-cyan-400 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/30'
-                      : 'bg-[#0a1220] text-cyan-300 border-cyan-900/60 hover:border-cyan-500'
-                  }`}
-                  title="Focus Chennai & Harbours (+20% Zoom)"
-                >
-                  <span>CHENNAI +20%</span>
-                </button>
-
-                <button
-                  onClick={() => onSelectPreset('scenario_02', 'Can I take my boat out tomorrow near Vizag?')}
-                  className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
-                    activePreset === 'scenario_02'
-                      ? 'bg-red-600 text-white border-red-400 shadow-md shadow-red-600/30'
-                      : 'bg-[#0a1220] text-red-300 border-red-900/60 hover:border-red-500'
-                  }`}
-                  title="Cyclone Safety Veto"
-                >
-                  <span>VIZAG VETO</span>
-                </button>
-              </div>
-            )}
-
-            <button
-              onClick={handleRecenter}
-              className="h-6 px-2 rounded bg-[#091322] text-slate-300 hover:text-cyan-300 border border-[#1b2b45] transition flex items-center gap-1 font-mono text-[10px]"
-              title="Recenter Map Camera"
-            >
-              <RotateCcw className="w-2.5 h-2.5" />
-              <span>RECENTER</span>
-            </button>
-          </div>
-
+          <button
+            onClick={handleRecenter}
+            className="h-6 px-2 rounded bg-[#091322] text-slate-300 hover:text-cyan-300 border border-[#1b2b45] transition flex items-center gap-1 text-[10px]"
+            title="Recenter Map Camera"
+          >
+            <RotateCcw className="w-3 h-3 shrink-0" />
+            <span>RECENTER</span>
+          </button>
         </div>
 
       </div>
