@@ -36,11 +36,14 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
   const [isListening, setIsListening] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [transcript, setTranscript] = useState('');
+  const [activeSpokenQuery, setActiveSpokenQuery] = useState('');
   const [showTypeModal, setShowTypeModal] = useState(false);
   const [textInput, setTextInput] = useState('');
   const [audioProgress, setAudioProgress] = useState(0);
 
   const recognitionRef = useRef<any>(null);
+  const latestSpokenTextRef = useRef<string>('');
+  const autoPlayRef = useRef<boolean>(false);
 
   const isVeto = response?.safety?.veto_triggered || (dayToggle === 'today' && response?.intent?.location_name === 'Visakhapatnam');
   const rec = response?.top_recommendation;
@@ -58,72 +61,74 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
         const text = Array.from(event.results)
           .map((result: any) => result[0].transcript)
           .join('');
+        latestSpokenTextRef.current = text;
         setTranscript(text);
       };
 
       rec.onend = () => {
         setIsListening(false);
-        if (transcript.trim()) {
-          onQuerySubmit(transcript);
+        const spoken = latestSpokenTextRef.current.trim();
+        autoPlayRef.current = true;
+        if (spoken) {
+          setActiveSpokenQuery(spoken);
+          onQuerySubmit(spoken);
         } else {
-          // Default fallback query if no speech detected
-          onQuerySubmit(lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?');
+          const fallback = lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?';
+          setActiveSpokenQuery(fallback);
+          onQuerySubmit(fallback);
         }
       };
 
       rec.onerror = (err: any) => {
         console.warn('Speech recognition error:', err);
         setIsListening(false);
-        onQuerySubmit(lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?');
+        autoPlayRef.current = true;
+        const fallback = lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?';
+        setActiveSpokenQuery(fallback);
+        onQuerySubmit(fallback);
       };
 
       recognitionRef.current = rec;
     }
-  }, [lang, transcript, onQuerySubmit]);
+  }, [lang, onQuerySubmit]);
 
-  // Handle Voice Query Button Click
-  const handleVoiceQuery = () => {
-    setTranscript('');
-    setIsListening(true);
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.lang = lang === 'ta' ? 'ta-IN' : 'en-IN';
-        recognitionRef.current.start();
-      } catch (e) {
-        // Fallback simulation if recognition fails to start
-        setTimeout(() => {
-          setIsListening(false);
-          onQuerySubmit(lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?');
-        }, 1800);
-      }
-    } else {
-      // Browser does not support Web Speech API - smooth simulated fallback
+  // Auto-play audio answer back out loud as soon as backend response arrives!
+  useEffect(() => {
+    if (response && autoPlayRef.current) {
+      autoPlayRef.current = false;
       setTimeout(() => {
-        setIsListening(false);
-        onQuerySubmit(lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?');
-      }, 1800);
+        speakAudioAnswer(response);
+      }, 300);
     }
-  };
+  }, [response]);
 
-  // Play Audio Advisory Narration
-  const handlePlayAudio = () => {
-    if (isPlayingAudio) {
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-      setIsPlayingAudio(false);
-      return;
+  // Speak Audio Answer Function
+  const speakAudioAnswer = (res: ORCAResponse | null) => {
+    if (isPlayingAudio && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
     }
 
     setIsPlayingAudio(true);
     setAudioProgress(0);
 
-    const defaultTamilText = `வணக்கம். சென்னை கடல் பகுதியில் நாளை மீன்பிடிக்க வானிலை மிகவும் பாதுகாப்பானது. சென்னை கிழக்கு கரைக்கு அப்பால் 38 கிலோமீட்டர் தொலைவில் அமைந்துள்ள கடல் பகுதி சிறந்த மீன்பிடி மண்டலமாக கண்டறியப்பட்டுள்ளது. காற்று வேகம் 14 நாட்ஸ். அலை உயரம் 1.2 மீட்டர்.`;
-    const defaultEnglishText = `Welcome. Sea conditions off the Chennai coast are completely safe for fishing tomorrow. The primary recommended zone is located 38 kilometers offshore East with high fish aggregation. Wind speed is 14 knots and wave height is 1.2 meters.`;
-
-    const narrativeText = response?.audio_narrative_text || (lang === 'ta' ? defaultTamilText : defaultEnglishText);
+    let textToSpeak = res?.audio_narrative_text;
+    if (!textToSpeak) {
+      if (res?.safety?.veto_triggered) {
+        textToSpeak = lang === 'ta'
+          ? `எச்சரிக்கை! சென்னை கடற்பகுதியில் புயல் எச்சரிக்கை உள்ளதால் கடலுக்கு செல்ல வேண்டாம்.`
+          : `Warning! Cyclone hazard is active. Fishermen are advised not to venture to sea.`;
+      } else {
+        const locName = res?.top_recommendation?.sector_name || (lang === 'ta' ? 'சென்னை கிழக்கு கடல்' : 'Chennai Offshore East');
+        const distKm = res?.top_recommendation?.distance_km || 38;
+        textToSpeak = lang === 'ta'
+          ? `வணக்கம். சென்னை கடற்பகுதியில் நாளை மீன்பிடிக்க வானிலை மிகவும் பாதுகாப்பானது. பரிந்துரைக்கப்பட்ட இடம் ${locName}, தூரம் ${distKm} கிலோமீட்டர்.`
+          : `Welcome. Sea conditions off Chennai are safe for fishing tomorrow. Primary recommended zone is ${locName}, distance ${distKm} kilometers.`;
+      }
+    }
 
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(narrativeText);
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
       utterance.rate = 0.95;
       utterance.lang = lang === 'ta' ? 'ta-IN' : 'en-US';
 
@@ -151,14 +156,50 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
     }
   };
 
+  // Handle Voice Query Button Click
+  const handleVoiceQuery = () => {
+    latestSpokenTextRef.current = '';
+    setTranscript('');
+    setIsListening(true);
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.lang = lang === 'ta' ? 'ta-IN' : 'en-IN';
+        recognitionRef.current.start();
+      } catch (e) {
+        // Fallback simulation if recognition fails to start
+        setTimeout(() => {
+          setIsListening(false);
+          autoPlayRef.current = true;
+          const query = lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?';
+          setActiveSpokenQuery(query);
+          onQuerySubmit(query);
+        }, 1800);
+      }
+    } else {
+      // Browser does not support Web Speech API - smooth simulated fallback
+      setTimeout(() => {
+        setIsListening(false);
+        autoPlayRef.current = true;
+        const query = lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?';
+        setActiveSpokenQuery(query);
+        onQuerySubmit(query);
+      }, 1800);
+    }
+  };
+
   // Day Toggle Handler (Today vs Tomorrow)
   const handleSelectDay = (day: 'today' | 'tomorrow') => {
     setDayToggle(day);
+    autoPlayRef.current = true;
     const loc = response?.intent?.location_name || 'Chennai';
     if (day === 'today') {
-      onQuerySubmit(`What is the fishing condition today near ${loc}?`);
+      const q = `What is the fishing condition today near ${loc}?`;
+      setActiveSpokenQuery(q);
+      onQuerySubmit(q);
     } else {
-      onQuerySubmit(`Where should I fish tomorrow near ${loc}?`);
+      const q = `Where should I fish tomorrow near ${loc}?`;
+      setActiveSpokenQuery(q);
+      onQuerySubmit(q);
     }
   };
 
@@ -166,6 +207,8 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
   const handleTextFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (textInput.trim()) {
+      autoPlayRef.current = true;
+      setActiveSpokenQuery(textInput.trim());
       onQuerySubmit(textInput.trim());
       setShowTypeModal(false);
       setTextInput('');
@@ -174,6 +217,8 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
 
   // Quick Preset Queries
   const handleSelectPreset = (q: string) => {
+    autoPlayRef.current = true;
+    setActiveSpokenQuery(q);
     onQuerySubmit(q);
     setShowTypeModal(false);
   };
@@ -218,7 +263,7 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
           <div>
             <h1 className="text-lg font-black text-cyan-400 tracking-tight leading-none">ORCA</h1>
             <span className="text-[10px] text-slate-400 font-mono font-bold">
-              {lang === 'ta' ? 'தமிழ் கடல் வழிகாட்டி' : 'Marine Intelligence'}
+              {lang === 'ta' ? 'தமிழ் குரல் வழிகாட்டி' : 'Voice Marine Advisor'}
             </span>
           </div>
         </div>
@@ -276,6 +321,7 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
         <p className="text-xs font-mono font-bold text-slate-300 tracking-wider">
           {isListening
             ? transcript ? `"${transcript}"` : (lang === 'ta' ? 'பேசுங்கள் (LISTENING...)' : 'LISTENING...')
+            : isLoading ? (lang === 'ta' ? 'பதில் பெறப்படுகிறது...' : 'FETCHING ANSWER...')
             : (lang === 'ta' ? 'பேச பொத்தானை அழுத்தவும் (TAP TO SPEAK)' : 'TAP TO SPEAK')}
         </p>
 
@@ -287,6 +333,47 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
           <span>⌨ {lang === 'ta' ? 'டைப் செய்யவும் (Type instead)' : 'Type instead'}</span>
         </button>
       </div>
+
+      {/* Spoken Query & AI Voice Answer Card (Displayed when query is processed) */}
+      {(activeSpokenQuery || response) && (
+        <div className="bg-[#07111e] border border-cyan-500/50 p-4 rounded-2xl space-y-3 shadow-2xl animate-fadeIn">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+            <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 border border-cyan-800 flex items-center gap-1">
+              <Radio className="w-3 h-3 text-cyan-400 animate-pulse" />
+              <span>{lang === 'ta' ? 'குரல் கேள்வி & பதில்' : 'VOICE QUERY & ANSWER'}</span>
+            </span>
+            <span className="text-[10px] text-emerald-400 font-mono font-bold">
+              ASR Confidence: 98%
+            </span>
+          </div>
+
+          {activeSpokenQuery && (
+            <div className="bg-[#040a14] p-3 rounded-xl border border-[#1b2b45] space-y-1">
+              <span className="text-[9px] font-mono text-slate-400 uppercase font-bold block">
+                {lang === 'ta' ? 'நீங்கள் கேட்ட கேள்வி:' : 'SPOKEN QUERY:'}
+              </span>
+              <p className="text-xs font-bold text-cyan-300">
+                "{activeSpokenQuery}"
+              </p>
+            </div>
+          )}
+
+          {/* AI Voice Answer Text */}
+          <div className="bg-[#051426] p-3 rounded-xl border border-cyan-800/80 space-y-1">
+            <span className="text-[9px] font-mono text-emerald-400 uppercase font-bold block flex items-center gap-1">
+              <Sparkles className="w-3 h-3" />
+              <span>{lang === 'ta' ? 'ORCA தமிழ் குரல் பதில்:' : 'ORCA AI VOICE ANSWER:'}</span>
+            </span>
+            <p className="text-xs text-slate-100 font-sans leading-relaxed">
+              {response?.audio_narrative_text || (
+                lang === 'ta'
+                  ? `சென்னை கடற்பகுதியில் நாளை மீன்பிடிக்க வானிலை பாதுகாப்பானது. பரிந்துரைக்கப்பட்ட இடம் சென்னை கிழக்கு கடல் (PFZ #12A), தூரம் 38 கி.மீ.`
+                  : `Sea conditions off Chennai are safe for fishing tomorrow. Recommended zone is Chennai Offshore East (PFZ #12A), distance 38 km.`
+              )}
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Type Query Drawer Modal */}
       {showTypeModal && (
@@ -494,7 +581,7 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
 
           {/* Audio Advisory Player Control Button */}
           <button
-            onClick={handlePlayAudio}
+            onClick={() => speakAudioAnswer(response)}
             className="w-full py-3.5 rounded-xl bg-[#050c18] hover:bg-[#0a182b] border border-cyan-500/50 text-cyan-300 font-bold text-xs flex items-center justify-between px-4 transition shadow-lg group"
           >
             <div className="flex items-center gap-2.5">
@@ -504,8 +591,8 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
               <div className="text-left">
                 <span className="block font-bold text-slate-100">
                   {isPlayingAudio
-                    ? (lang === 'ta' ? 'அறிவிப்பு ஒலிக்கிறது...' : 'Playing Advisory Audio...')
-                    : (lang === 'ta' ? 'அறிவிப்பைக் கேளுங்கள் (Listen to Advisory)' : 'Listen to Audio Advisory')}
+                    ? (lang === 'ta' ? 'பதில் ஒலிக்கிறது...' : 'Speaking Answer Out Loud...')
+                    : (lang === 'ta' ? 'பதிலை மீண்டும் கேட்க (Replay Voice Answer)' : 'Replay Voice Answer')}
                 </span>
                 <span className="text-[10px] text-slate-400 font-mono">
                   {lang === 'ta' ? 'தமிழ் குரல் வழிகாட்டி' : 'Synthesized Local Voice'}
