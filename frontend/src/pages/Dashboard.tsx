@@ -4,8 +4,9 @@ import { SuitabilityDonut } from '../components/SuitabilityDonut';
 import { AgentTracePanel } from '../components/AgentTracePanel';
 import { KeyOceanDrivers } from '../components/KeyOceanDrivers';
 import { OceanTelemetryChart } from '../components/charts/OceanTelemetryChart';
-import { Mic, Send, HelpCircle } from 'lucide-react';
+import { Mic, Send, HelpCircle, MapPin } from 'lucide-react';
 import { ORCAResponse } from '../types';
+import { resolveLocationFromText, ResolvedLocationResult } from '../utils/locationResolver';
 
 interface DashboardProps {
   response: ORCAResponse | null;
@@ -14,40 +15,115 @@ interface DashboardProps {
 }
 
 export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, isLoading }) => {
-  const [queryInput, setQueryInput] = useState('Where should I fish tomorrow near Chennai?');
-  const [activePreset, setActivePreset] = useState<'scenario_01' | 'scenario_02' | 'scenario_03'>('scenario_01');
+  const [queryInput, setQueryInput] = useState('');
+  const [submittedQuery, setSubmittedQuery] = useState('');
+  const [resolvedLocation, setResolvedLocation] = useState<ResolvedLocationResult | null>(() => {
+    return resolveLocationFromText('chennai');
+  });
+  const [activePreset, setActivePreset] = useState<'scenario_01' | 'scenario_02' | 'scenario_03' | null>('scenario_01');
   const [selectedZone, setSelectedZone] = useState<any>(null);
+  const [executeTrigger, setExecuteTrigger] = useState<number>(0);
 
   const isVeto = response?.safety?.veto_triggered || activePreset === 'scenario_02';
 
   const activeLocation = React.useMemo(() => {
+    if (resolvedLocation) {
+      return resolvedLocation.matchedPlace;
+    }
     if (activePreset === 'scenario_02') return 'Visakhapatnam';
     if (activePreset === 'scenario_03') return 'Chennai';
-    return response?.intent?.location_name || 'Chennai';
-  }, [activePreset, response?.intent?.location_name]);
+    if (response?.intent?.location_name) return response.intent.location_name;
+    return 'Chennai';
+  }, [resolvedLocation, activePreset, response?.intent?.location_name]);
 
   const mapCenter: [number, number] = React.useMemo(() => {
+    // 1. If location was identified in the sent query text
+    if (resolvedLocation) {
+      return resolvedLocation.center;
+    }
+
+    // 2. Preset fallbacks
     if (activePreset === 'scenario_02') return [83.3032, 17.6974];
-    if (activePreset === 'scenario_03') return [80.2974, 13.0827];
+    if (activePreset === 'scenario_03' || activePreset === 'scenario_01') return [80.3600, 13.1500];
+
+    // 3. Response top recommendation fallback
     if (response?.top_recommendation?.center_lon && response?.top_recommendation?.center_lat) {
       return [response.top_recommendation.center_lon, response.top_recommendation.center_lat];
     }
-    return [80.2974, 13.0827];
-  }, [response?.top_recommendation, activePreset]);
 
-  const mapZoom = activePreset === 'scenario_02' ? 7.5 : 8.5;
+    return [80.3600, 13.1500];
+  }, [resolvedLocation, activePreset, response?.top_recommendation]);
+
+  const mapZoom = React.useMemo(() => {
+    // 1. If location was identified in the sent query text
+    if (resolvedLocation) {
+      return resolvedLocation.zoom;
+    }
+
+    // 2. Preset fallbacks
+    if (activePreset === 'scenario_02') return 10.2;
+    if (activePreset === 'scenario_01' || activePreset === 'scenario_03') return 10.8;
+
+    return 10.8;
+  }, [resolvedLocation, activePreset]);
+
+  // Synchronize when backend response arrives with intent location
+  React.useEffect(() => {
+    if (response?.intent?.location_name && !submittedQuery) {
+      const res = resolveLocationFromText(response.intent.location_name);
+      if (res) {
+        setResolvedLocation(res);
+      }
+    }
+  }, [response, submittedQuery]);
+
+  const handleQueryChange = (val: string) => {
+    setQueryInput(val);
+    const lower = val.trim().toLowerCase();
+    // As soon as user types "execute" in the chatbox, trigger zoom in 20% on Chennai
+    if (lower === 'execute' || lower.endsWith('execute') || lower.startsWith('execute')) {
+      const res = resolveLocationFromText('chennai');
+      if (res) {
+        setResolvedLocation(res);
+        setActivePreset('scenario_01');
+        setExecuteTrigger(Date.now());
+      }
+    }
+  };
 
   const handleExecute = (e: React.FormEvent) => {
     e.preventDefault();
-    if (queryInput.trim()) {
-      setSelectedZone(null);
-      const lower = queryInput.toLowerCase();
-      if (lower.includes('vizag') || lower.includes('cyclone')) {
-        setActivePreset('scenario_02');
-      } else if (lower.includes('chennai') || lower.includes('சென்னை') || lower.includes('தமிழ்')) {
+    const trimmed = queryInput.trim() || 'what are the potential fishing zones near chennai';
+
+    setSelectedZone(null);
+    setSubmittedQuery(trimmed);
+
+    // As soon as the question is asked or execute is clicked, zoom in 20% on Chennai or detected place
+    const resolved = resolveLocationFromText(trimmed) || resolveLocationFromText('chennai');
+    if (resolved) {
+      setResolvedLocation(resolved);
+      if (resolved.sectorId === 'visakhapatnam') {
+        const lower = trimmed.toLowerCase();
+        if (lower.includes('cyclone') || lower.includes('veto') || lower.includes('warning') || lower.includes('hazard')) {
+          setActivePreset('scenario_02');
+        } else {
+          setActivePreset(null);
+        }
+      } else if (resolved.sectorId === 'chennai') {
         setActivePreset('scenario_01');
+      } else {
+        setActivePreset(null);
       }
-      onQuerySubmit(queryInput.trim());
+    }
+
+    setExecuteTrigger(Date.now());
+    onQuerySubmit(trimmed);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleExecute(e as any);
     }
   };
 
@@ -55,6 +131,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
     setActivePreset(id);
     setSelectedZone(null);
     setQueryInput(q);
+    setSubmittedQuery(q);
+    const resolved = resolveLocationFromText(q);
+    if (resolved) {
+      setResolvedLocation(resolved);
+    }
+    setExecuteTrigger(Date.now());
     onQuerySubmit(q);
   };
 
@@ -122,7 +204,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
               <textarea
                 rows={3}
                 value={queryInput}
-                onChange={(e) => setQueryInput(e.target.value)}
+                onChange={(e) => handleQueryChange(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="Ask about fishing locations, hazards, sea conditions (e.g. Chennai, Vizag, Bangalore, Kochi)..."
                 className="w-full bg-[#060c16] border border-[#1c2838] text-xs text-slate-100 p-2.5 rounded-lg outline-none focus:ring-1 focus:ring-cyan-400 font-sans resize-none"
               ></textarea>
 
@@ -144,6 +228,34 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
                   <Send className="w-3.5 h-3.5" />
                 </button>
               </div>
+
+              {/* Location Identification Pill (Active only after sending query / finding place in chatbox) */}
+              {resolvedLocation && (
+                <div className="p-2.5 rounded-lg bg-[#061224] border border-cyan-500/40 text-[11px] font-mono text-cyan-300 shadow-sm mt-1">
+                  <div className="font-bold flex items-center justify-between">
+                    <span className="flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-cyan-400" />
+                      <span>{resolvedLocation.isCoastal ? 'COASTAL FOCUS' : 'INLAND MAPPED TO COAST'}</span>
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-950 text-cyan-200 border border-cyan-800">
+                      ZOOM {resolvedLocation.zoom} {resolvedLocation.sectorId === 'chennai' ? '(+20%)' : ''}
+                    </span>
+                  </div>
+                  <div className="text-slate-300 text-[10px] mt-1 leading-relaxed">
+                    {resolvedLocation.isCoastal ? (
+                      <>
+                        Identified <b className="text-cyan-200">{resolvedLocation.matchedPlace}</b>
+                        {resolvedLocation.confidence < 1 ? ` (spelling optimized from "${resolvedLocation.rawToken}")` : ''} • Coastal Sector Active.
+                      </>
+                    ) : (
+                      <>
+                        <b className="text-amber-300">{resolvedLocation.matchedPlace}</b> is an inland city
+                        {resolvedLocation.confidence < 1 ? ` (optimized from "${resolvedLocation.rawToken}")` : ''}. Zoomed into nearest coastal sector: <b className="text-cyan-200">{resolvedLocation.sectorName}</b>.
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
             </form>
           </div>
 
@@ -159,9 +271,12 @@ export const Dashboard: React.FC<DashboardProps> = ({ response, onQuerySubmit, i
               zoom={mapZoom}
               response={response}
               location={activeLocation}
-              query={queryInput}
+              query={submittedQuery}
               selectedZone={selectedZone}
               onSelectZone={setSelectedZone}
+              activePreset={activePreset}
+              onSelectPreset={handleSelectPreset}
+              executeTrigger={executeTrigger}
             />
           </div>
           <OceanTelemetryChart />

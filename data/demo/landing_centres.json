@@ -10,6 +10,36 @@
     "max_boat_capacity": 1200
   },
   {
+    "id": "lc_chennai_03",
+    "name": "Chennai Port (Madras Harbour)",
+    "district": "Chennai",
+    "state": "Tamil Nadu",
+    "latitude": 13.0844,
+    "longitude": 80.2989,
+    "facilities": ["Deepwater Container Berths", "Naval Base", "Bunkering Terminal", "Vessel Traffic Service"],
+    "max_boat_capacity": 2500
+  },
+  {
+    "id": "lc_chennai_04",
+    "name": "Kamarajar Port (Ennore Harbour)",
+    "district": "Chennai",
+    "state": "Tamil Nadu",
+    "latitude": 13.2611,
+    "longitude": 80.3317,
+    "facilities": ["Coal & Cargo Berths", "LNG Terminal", "Tug Support", "Breakwater Harbour"],
+    "max_boat_capacity": 1800
+  },
+  {
+    "id": "lc_chennai_05",
+    "name": "Kattupalli Port & Shipyard Harbour",
+    "district": "Tiruvallur",
+    "state": "Tamil Nadu",
+    "latitude": 13.3100,
+    "longitude": 80.3450,
+    "facilities": ["Shipyard Repair", "Heavy Drydock", "Breakwater Basin", "Container Terminal"],
+    "max_boat_capacity": 1100
+  },
+  {
     "id": "lc_chennai_02",
     "name": "Cuddalore Fishing Harbour",
     "district": "Cuddalore",

@@ -51,6 +51,13 @@ export function getLandingCentresGeoJSON() {
 export function getPFZAdvisoriesGeoJSON() {
   const harbourMap: Record<string, [number, number]> = {
     'Royapuram Fishing Harbour (Kasimedu)': [80.2974, 13.1258],
+    'Kasimedu Fishing Harbour': [80.2974, 13.1258],
+    'Chennai Port (Madras Harbour)': [80.2989, 13.0844],
+    'Chennai Port': [80.2989, 13.0844],
+    'Kamarajar Port (Ennore Harbour)': [80.3317, 13.2611],
+    'Kamarajar Port': [80.3317, 13.2611],
+    'Kattupalli Port & Shipyard Harbour': [80.3450, 13.3100],
+    'Kattupalli Harbour': [80.3450, 13.3100],
     'Munambam Fishing Harbour': [76.1683, 10.1812],
     'Old Mangalore Port Jetty': [74.8320, 12.8550],
     'Visakhapatnam Fishing Harbour': [83.3032, 17.6974]
@@ -249,7 +256,7 @@ export function getVesselsGeoJSON() {
         },
         geometry: {
           type: 'Point' as const,
-          coordinates: [80.6210, 13.1850]
+          coordinates: [80.5500, 13.2300]
         }
       },
       {

@@ -36,6 +36,9 @@ export interface MapViewProps {
   response?: ORCAResponse | null;
   location?: string;
   query?: string;
+  activePreset?: 'scenario_01' | 'scenario_02' | 'scenario_03' | null;
+  onSelectPreset?: (id: 'scenario_01' | 'scenario_02' | 'scenario_03', q: string) => void;
+  executeTrigger?: number;
 }
 
 export type BasemapMode = 'dark' | 'ocean' | 'satellite' | 'streets';
@@ -152,8 +155,8 @@ function getStyleForMode(mode: BasemapMode): any {
   return DARK_STYLE;
 }
 
-const DEFAULT_CENTER: [number, number] = [80.4500, 13.1500]; // Framing Kasimedu Harbour & PFZ #12A Route
-const DEFAULT_ZOOM = 9.5;
+const DEFAULT_CENTER: [number, number] = [80.3600, 13.1500]; // Framing Chennai coastal harbours and PFZ route
+const DEFAULT_ZOOM = 10.8; // +20% zoom in over base ~9.0
 
 export const MapView: React.FC<MapViewProps> = ({
   isVeto = false,
@@ -163,7 +166,10 @@ export const MapView: React.FC<MapViewProps> = ({
   zoom = DEFAULT_ZOOM,
   response,
   location,
-  query
+  query,
+  activePreset,
+  onSelectPreset,
+  executeTrigger
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<Map | null>(null);
@@ -173,6 +179,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const [backendSyncStatus, setBackendSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('syncing');
   const [activeSectorTitle, setActiveSectorTitle] = useState<string>('Chennai Offshore East Sector');
   const [backendMapConfig, setBackendMapConfig] = useState<any>(null);
+  const [currentMapZoom, setCurrentMapZoom] = useState<number>(zoom ?? DEFAULT_ZOOM);
 
   const cachedBackendLayersRef = useRef<any>(null);
   const domMarkersRef = useRef<any[]>([]);
@@ -607,6 +614,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
     // 8. Attach High-Contrast HTML DOM Badges & Markers for instant visual clarity at all zoom levels
     try {
+      // 8. Attach High-Contrast HTML DOM Badges & Markers dynamically from GeoJSON collections
       domMarkersRef.current.forEach((m) => {
         try { m.remove(); } catch (e) {}
       });
@@ -630,91 +638,271 @@ export const MapView: React.FC<MapViewProps> = ({
         document.head.appendChild(styleEl);
       }
 
-      // Kasimedu Harbour HTML Marker with Pulsating Sonar Radar Ripple Effect
-      if (currentVis.ports !== false) {
-        const harbourEl = document.createElement('div');
-        harbourEl.style.position = 'relative';
-        harbourEl.style.display = 'flex';
-        harbourEl.style.alignItems = 'center';
-        harbourEl.style.justifyContent = 'center';
-        harbourEl.innerHTML = `
-          <div style="position:absolute; width:52px; height:52px; border-radius:50%; background:rgba(56,189,248,0.3); border:2px solid #38bdf8; animation:harbourSonarPing 2s infinite ease-out; pointer-events:none"></div>
-          <div style="position:absolute; width:34px; height:34px; border-radius:50%; background:rgba(2,132,199,0.4); border:1.5px solid #7dd3fc; animation:harbourSonarPulse 1.6s infinite ease-in-out; pointer-events:none"></div>
-          <div style="background:#0284c7; color:#ffffff; padding:5px 12px; border-radius:14px; border:2.5px solid #ffffff; font-family:monospace; font-weight:900; font-size:12px; box-shadow:0 0 25px rgba(2,132,199,0.9), 0 4px 14px rgba(0,0,0,0.7); display:flex; align-items:center; gap:5px; white-space:nowrap; z-index:10; cursor:pointer">
-            <span style="font-size:14px">⚓</span>
-            <span>Kasimedu Harbour (Chennai Base)</span>
-          </div>
-        `;
-        const m = new Marker({ element: harbourEl, anchor: 'center' })
-          .setLngLat([80.2974, 13.1258])
-          .addTo(map);
-        domMarkersRef.current.push(m);
+      // 1. Dynamic Harbour HTML Markers for All Sector Coastal Harbours (West/Inland Anchored for Zero Overlap)
+      if (currentVis.ports !== false && landingData?.features?.length > 0) {
+        // Find all harbours relevant to the active view / sector
+        const relevantHarbours = landingData.features.filter((f: any) => {
+          if (!f.geometry?.coordinates) return false;
+          const [lon, lat] = f.geometry.coordinates;
+          const dist = Math.hypot(lon - targetLon, lat - targetLat);
+          return dist < 1.2 || f.properties?.is_active_harbour;
+        });
+
+        const harboursToRender = relevantHarbours.length > 0 ? relevantHarbours : landingData.features.slice(0, 4);
+
+        harboursToRender.forEach((harbourFeat: any) => {
+          const harbourCoords = harbourFeat.geometry?.coordinates;
+          if (!harbourCoords) return;
+          const props = harbourFeat.properties || {};
+          const harbourName = props.name || 'Fishing Harbour';
+          const lower = harbourName.toLowerCase();
+          const isKasimedu = lower.includes('kasimedu') || lower.includes('royapuram') || props.is_active_harbour;
+          const isEnnore = lower.includes('ennore') || lower.includes('kamarajar');
+          const isKattupalli = lower.includes('kattupalli');
+          const isChennaiPort = lower.includes('chennai port') || lower.includes('madras');
+
+          // Clean display name to prevent oversized labels
+          const cleanName = isKasimedu
+            ? 'Kasimedu Harbour'
+            : isEnnore
+            ? 'Ennore Port'
+            : isKattupalli
+            ? 'Kattupalli Port'
+            : isChennaiPort
+            ? 'Chennai Port'
+            : props.name?.length > 22
+            ? props.name.slice(0, 20) + '..'
+            : props.name;
+
+          const capacity = props.capacity ? `${props.capacity >= 1000 ? (props.capacity / 1000).toFixed(1) + 'k' : props.capacity} boats` : '';
+
+          const harbourEl = document.createElement('div');
+          harbourEl.style.position = 'relative';
+          harbourEl.style.display = 'flex';
+          harbourEl.style.alignItems = 'center';
+          harbourEl.style.justifyContent = 'center';
+          harbourEl.style.cursor = 'pointer';
+
+          if (isKasimedu) {
+            harbourEl.innerHTML = `
+              <div style="position:absolute; width:44px; height:44px; border-radius:50%; background:rgba(56,189,248,0.35); border:1.5px solid #38bdf8; animation:harbourSonarPing 2.2s infinite ease-out; pointer-events:none"></div>
+              <div style="position:absolute; width:26px; height:26px; border-radius:50%; background:rgba(2,132,199,0.45); border:1.5px solid #7dd3fc; animation:harbourSonarPulse 1.8s infinite ease-in-out; pointer-events:none"></div>
+              <div style="background:linear-gradient(135deg, #0284c7, #0369a1); color:#ffffff; padding:3px 8px; border-radius:10px; border:1.5px solid #ffffff; font-family:monospace; font-weight:900; font-size:10px; box-shadow:0 0 16px rgba(2,132,199,0.9); display:flex; align-items:center; gap:4px; white-space:nowrap; z-index:10">
+                <span style="font-size:12px">⚓</span>
+                <span>${cleanName}</span>
+                ${capacity ? `<span style="background:rgba(0,0,0,0.35); padding:1px 4px; border-radius:4px; font-size:8.5px; color:#bae6fd">${capacity}</span>` : ''}
+              </div>
+            `;
+          } else {
+            harbourEl.innerHTML = `
+              <div style="background:linear-gradient(135deg, #0b172a, #1e293b); color:#e2e8f0; padding:2.5px 7px; border-radius:8px; border:1.5px solid #38bdf8; font-family:monospace; font-weight:800; font-size:9.5px; box-shadow:0 3px 10px rgba(0,0,0,0.7); display:flex; align-items:center; gap:3px; white-space:nowrap; z-index:9">
+                <span style="font-size:11px; color:#38bdf8">⚓</span>
+                <span>${cleanName}</span>
+                ${capacity ? `<span style="background:rgba(56,189,248,0.15); padding:1px 3px; border-radius:3px; font-size:8px; color:#7dd3fc">${capacity}</span>` : ''}
+              </div>
+            `;
+          }
+
+          harbourEl.addEventListener('click', () => {
+            new Popup({ closeButton: true })
+              .setLngLat(harbourCoords)
+              .setHTML(`
+                <div style="font-family:sans-serif; padding:6px; color:#0f172a; max-width:240px">
+                  <strong style="color:#0284c7; font-size:13px; display:block; margin-bottom:4px">⚓ ${props.name}</strong>
+                  <div style="font-size:11px; line-height:1.4">
+                    <div>State: <b>${props.state}</b> (${props.district || ''})</div>
+                    <div>Max Capacity: <b>${props.capacity} boats</b></div>
+                    <div style="color:#475569; margin-top:3px">${props.facilities || ''}</div>
+                  </div>
+                </div>
+              `)
+              .addTo(map);
+          });
+
+          // Anchor to 'right' so badge extends westwards onto the land, avoiding all marine layers
+          const vOffset = isKattupalli ? -5 : isEnnore ? 5 : 0;
+          const m = new Marker({ element: harbourEl, anchor: 'right', offset: [-12, vOffset] })
+            .setLngLat(harbourCoords)
+            .addTo(map);
+          domMarkersRef.current.push(m);
+        });
       }
 
-      // Navigation Route HTML Badge Pin
-      if (currentVis.route) {
-        const routeEl = document.createElement('div');
-        routeEl.innerHTML = `
-          <div style="background:#0891b2; color:#ffffff; padding:5px 11px; border-radius:14px; border:2px solid #67e8f9; font-family:monospace; font-weight:900; font-size:11px; box-shadow:0 0 16px rgba(6,182,212,0.85); display:flex; align-items:center; gap:5px; white-space:nowrap; cursor:pointer">
-            ⛵ Kasimedu ➔ PFZ #12A Route (35.2 km, 85° E)
-          </div>
-        `;
-        const rm = new Marker({ element: routeEl, anchor: 'center' })
-          .setLngLat([80.4500, 13.1500])
-          .addTo(map);
-        domMarkersRef.current.push(rm);
+      // 2. Dynamic Navigation Route HTML Badge Pin (Mid-Channel, Floating Above Route Line)
+      if (currentVis.route && routeData?.features?.length > 0) {
+        const rFeat = routeData.features[0];
+        const coords = rFeat?.geometry?.coordinates;
+        if (coords && coords.length >= 2) {
+          const midPt: [number, number] = (targetLon > 79 && targetLon < 82)
+            ? [80.4400, 13.1600]
+            : coords[Math.floor(coords.length / 2)];
+
+          const isVetoRoute = rFeat.properties?.is_veto || isVeto;
+          const routeLabel = isVetoRoute
+            ? '🚨 VETO HARBOUR RETURN'
+            : '⛵ PFZ Route (35 km • 85° ENE)';
+
+          const routeEl = document.createElement('div');
+          routeEl.innerHTML = `
+            <div style="background:${isVetoRoute ? 'linear-gradient(135deg, #991b1b, #7f1d1d)' : 'linear-gradient(135deg, #0891b2, #0e7490)'}; color:#ffffff; padding:3px 8px; border-radius:10px; border:1.5px solid ${isVetoRoute ? '#fca5a5' : '#67e8f9'}; font-family:monospace; font-weight:900; font-size:9.5px; box-shadow:0 0 12px ${isVetoRoute ? 'rgba(239,68,68,0.7)' : 'rgba(6,182,212,0.7)'}; display:flex; align-items:center; gap:4px; white-space:nowrap; cursor:pointer">
+              ${routeLabel}
+            </div>
+          `;
+
+          routeEl.addEventListener('click', () => {
+            new Popup({ closeButton: true })
+              .setLngLat(midPt)
+              .setHTML(`
+                <div style="font-family:sans-serif; padding:6px; color:#0f172a; max-width:240px">
+                  <strong style="color:#0891b2; font-size:12px; display:block; margin-bottom:3px">⛵ Navigation Route Telemetry</strong>
+                  <div style="font-size:11px; line-height:1.4">
+                    <div>Origin: <b>Kasimedu Fishing Harbour</b></div>
+                    <div>Destination: <b>Chennai Offshore PFZ #12A</b></div>
+                    <div>Total Distance: <b>35.2 km (~19 NM)</b></div>
+                    <div>Recommended Heading: <b>85° ENE</b></div>
+                    <div style="color:#16a34a; font-weight:bold; margin-top:2px">Status: Cleared for Marine Transit</div>
+                  </div>
+                </div>
+              `)
+              .addTo(map);
+          });
+
+          const rm = new Marker({ element: routeEl, anchor: 'bottom', offset: [0, -8] })
+            .setLngLat(midPt)
+            .addTo(map);
+          domMarkersRef.current.push(rm);
+        }
       }
 
-      // PFZ #12A Target HTML Marker
-      if (currentVis.pfz) {
-        const pfzEl = document.createElement('div');
-        pfzEl.innerHTML = `
-          <div style="background:#059669; color:#ffffff; padding:5px 11px; border-radius:16px; border:2px solid #a7f3d0; font-family:monospace; font-weight:900; font-size:12px; box-shadow:0 0 20px rgba(16,185,129,0.7); display:flex; align-items:center; gap:5px; white-space:nowrap">
-            🐟 PFZ Zone #12A (88% Score)
-          </div>
-        `;
-        const m = new Marker({ element: pfzEl, anchor: 'bottom' })
-          .setLngLat([80.6210, 13.1850])
-          .addTo(map);
-        domMarkersRef.current.push(m);
+      // 3. Dynamic PFZ Target HTML Markers (Outer Shelf Quadrant)
+      if (currentVis.pfz && pfzPointData?.features?.length > 0) {
+        const topPts = pfzPointData.features.filter((f: any) => f.properties?.is_recommended).slice(0, 1);
+        const ptsToRender = topPts.length > 0 ? topPts : pfzPointData.features.slice(0, 1);
 
-        // Nearshore PFZ #100
-        const pfz100El = document.createElement('div');
-        pfz100El.innerHTML = `
-          <div style="background:#047857; color:#ffffff; padding:4px 8px; border-radius:12px; border:1.5px solid #a7f3d0; font-family:monospace; font-weight:bold; font-size:11px; box-shadow:0 0 10px rgba(16,185,129,0.5); display:flex; align-items:center; gap:4px; white-space:nowrap">
-            🐟 PFZ #100 (84% Score)
-          </div>
-        `;
-        const m100 = new Marker({ element: pfz100El, anchor: 'bottom' })
-          .setLngLat([80.4200, 13.1500])
-          .addTo(map);
-        domMarkersRef.current.push(m100);
+        ptsToRender.forEach((ptFeat: any) => {
+          const pCoords = ptFeat?.geometry?.coordinates;
+          const pProps = ptFeat?.properties;
+          if (pCoords && pProps) {
+            const pScore = pProps.score || 84;
+            const pTitle = pProps.sector_name || 'Kasimedu Shelf (PFZ #12A)';
+            const pfzEl = document.createElement('div');
+            pfzEl.innerHTML = `
+              <div style="background:linear-gradient(135deg, #065f46, #047857); color:#ffffff; padding:4px 9px; border-radius:12px; border:2px solid #6ee7b7; font-family:monospace; font-weight:900; font-size:10px; box-shadow:0 0 16px rgba(16,185,129,0.75); display:flex; align-items:center; gap:4px; white-space:nowrap; cursor:pointer">
+                🐟 ${pTitle} • ${pScore}% Score
+              </div>
+            `;
+
+            pfzEl.addEventListener('click', () => {
+              new Popup({ closeButton: true })
+                .setLngLat(pCoords)
+                .setHTML(`
+                  <div style="font-family:sans-serif; padding:6px; color:#0f172a; max-width:240px">
+                    <strong style="color:#059669; font-size:12px; display:block; margin-bottom:3px">🐟 INCOIS PFZ Advisory</strong>
+                    <div style="font-size:11px; line-height:1.4">
+                      <div>Zone: <b>${pTitle}</b></div>
+                      <div>Suitability Score: <b style="color:#16a34a">${pScore}%</b></div>
+                      <div>Depth: <b>36.5 meters</b></div>
+                      <div>Target Species: <b>Yellowfin Tuna, Mackerel, Sardines</b></div>
+                    </div>
+                  </div>
+                `)
+                .addTo(map);
+            });
+
+            const m = new Marker({ element: pfzEl, anchor: 'bottom-left', offset: [10, -8] })
+              .setLngLat(pCoords)
+              .addTo(map);
+            domMarkersRef.current.push(m);
+          }
+        });
       }
 
-      // AIS Vessel MFV Sea Queen HTML Marker
-      if (currentVis.vessels) {
-        const vesselEl = document.createElement('div');
-        vesselEl.innerHTML = `
-          <div style="background:#0c4a6e; color:#7dd3fc; padding:4px 8px; border-radius:10px; border:1.5px solid #38bdf8; font-family:monospace; font-weight:bold; font-size:11px; box-shadow:0 4px 10px rgba(0,0,0,0.6); display:flex; align-items:center; gap:4px; white-space:nowrap">
-            🚢 MFV Sea Queen (8.5 kts)
-          </div>
-        `;
-        const vm = new Marker({ element: vesselEl, anchor: 'bottom' })
-          .setLngLat([80.5210, 13.1420])
-          .addTo(map);
-        domMarkersRef.current.push(vm);
+      // 4. Dynamic AIS Vessel HTML Markers (Northern Shelf & Southern Waters)
+      if (currentVis.vessels && vesselData?.features?.length > 0) {
+        vesselData.features.forEach((vFeat: any, idx: number) => {
+          let vCoords = vFeat?.geometry?.coordinates;
+          const vProps = vFeat?.properties;
+          if (vCoords && vProps) {
+            // Nudge Sea Queen away from PFZ point if coincident
+            if (Math.abs(vCoords[0] - 80.6210) < 0.02 && Math.abs(vCoords[1] - 13.1850) < 0.02) {
+              vCoords = [80.5500, 13.2300];
+            }
+
+            const vesselEl = document.createElement('div');
+            vesselEl.innerHTML = `
+              <div style="background:linear-gradient(135deg, #0c4a6e, #075985); color:#bae6fd; padding:2.5px 6px; border-radius:7px; border:1px solid #38bdf8; font-family:monospace; font-weight:800; font-size:9px; box-shadow:0 2px 8px rgba(0,0,0,0.6); display:flex; align-items:center; gap:3px; white-space:nowrap; cursor:pointer">
+                🚢 ${vProps.name || 'Vessel'} (${vProps.speed_knots ?? 5} kts)
+              </div>
+            `;
+
+            vesselEl.addEventListener('click', () => {
+              new Popup({ closeButton: true })
+                .setLngLat(vCoords)
+                .setHTML(`
+                  <div style="font-family:sans-serif; padding:6px; color:#0f172a; max-width:230px">
+                    <strong style="color:#0284c7; font-size:12px; display:block; margin-bottom:3px">🚢 AIS Vessel Telemetry</strong>
+                    <div style="font-size:11px; line-height:1.4">
+                      <div>Name: <b>${vProps.name}</b></div>
+                      <div>Type: <b>${vProps.type || 'Trawler'}</b></div>
+                      <div>Speed: <b>${vProps.speed_knots} kts</b> (${vProps.heading_deg || 0}°)</div>
+                      <div>Base: <b>${vProps.harbour || 'Kasimedu'}</b></div>
+                      <div style="color:#0284c7; margin-top:2px">Status: ${vProps.status || 'Active'}</div>
+                    </div>
+                  </div>
+                `)
+                .addTo(map);
+            });
+
+            const vm = new Marker({
+              element: vesselEl,
+              anchor: idx === 0 ? 'top-left' : 'bottom-left',
+              offset: idx === 0 ? [8, 8] : [8, -8]
+            })
+              .setLngLat(vCoords)
+              .addTo(map);
+            domMarkersRef.current.push(vm);
+          }
+        });
       }
 
-      // SST Grid HTML Marker
-      if (currentVis.sst) {
+      // 5. Dynamic SST Grid HTML Marker (South-East Open Ocean Quadrant)
+      if (currentVis.sst && sstData?.features?.length > 0) {
+        const sFeat = sstData.features[0];
+        const sstVal = sFeat?.properties?.sst_celsius || '28.4';
+        const sstCoords: [number, number] = (targetLon > 79 && targetLon < 82)
+          ? [80.5000, 13.0500]
+          : targetLon > 82
+            ? [83.4200, 17.5800]
+            : targetLon < 77
+              ? [75.9800, 10.0800]
+              : [74.6500, 12.7200];
+
         const sstEl = document.createElement('div');
         sstEl.innerHTML = `
-          <div style="background:#78350f; color:#fde68a; padding:3px 7px; border-radius:8px; border:1px solid #f59e0b; font-family:monospace; font-weight:bold; font-size:10px; opacity:0.95; white-space:nowrap">
-            🌡️ SST Grid 28.4°C
+          <div style="background:linear-gradient(135deg, #78350f, #451a03); color:#fde68a; padding:3px 7px; border-radius:8px; border:1px solid #f59e0b; font-family:monospace; font-weight:800; font-size:9.5px; box-shadow:0 0 10px rgba(245,158,11,0.4); display:flex; align-items:center; gap:3px; white-space:nowrap; cursor:pointer">
+            🌡️ SST ${sstVal}°C • Front
           </div>
         `;
-        const sm = new Marker({ element: sstEl, anchor: 'center' })
-          .setLngLat([80.3800, 13.1500])
+
+        sstEl.addEventListener('click', () => {
+          new Popup({ closeButton: true })
+            .setLngLat(sstCoords)
+            .setHTML(`
+              <div style="font-family:sans-serif; padding:6px; color:#0f172a; max-width:240px">
+                <strong style="color:#d97706; font-size:12px; display:block; margin-bottom:3px">🌡️ Satellite Ocean Telemetry</strong>
+                <div style="font-size:11px; line-height:1.4">
+                  <div>Sea Surface Temp: <b>${sstVal}°C</b></div>
+                  <div>Chlorophyll: <b>1.85 mg/m³</b></div>
+                  <div>Thermal Gradient: <b>High (+0.8°C front)</b></div>
+                  <div style="color:#15803d; font-weight:bold; margin-top:2px">Favorable for pelagic schools</div>
+                </div>
+              </div>
+            `)
+            .addTo(map);
+        });
+
+        const sm = new Marker({ element: sstEl, anchor: 'center', offset: [0, 0] })
+          .setLngLat(sstCoords)
           .addTo(map);
         domMarkersRef.current.push(sm);
       }
@@ -836,8 +1024,12 @@ export const MapView: React.FC<MapViewProps> = ({
     mapInstanceRef.current = map;
 
     try {
-      map.addControl(new NavigationControl({ showCompass: true }), 'top-right');
+      map.addControl(new NavigationControl({ showCompass: true }), 'bottom-left');
     } catch (e) {}
+
+    map.on('zoom', () => {
+      setCurrentMapZoom(Number(map.getZoom().toFixed(1)));
+    });
 
     const onStyleReady = () => {
       setMapStatus('ready');
@@ -937,6 +1129,22 @@ export const MapView: React.FC<MapViewProps> = ({
     }
   }, [targetLon, targetLat, targetZoom]);
 
+  // Unconditionally zoom in 20% and focus target sector whenever executeTrigger changes (typed execute or submitted question)
+  useEffect(() => {
+    if (!executeTrigger) return;
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    map.flyTo({
+      center: [targetLon, targetLat],
+      zoom: targetZoom,
+      essential: true,
+      duration: 1100
+    });
+    setCurrentMapZoom(targetZoom);
+    syncLayersFromBackend(map);
+  }, [executeTrigger, targetLon, targetLat, targetZoom, syncLayersFromBackend]);
+
   // Reactively update hazard and route styling when isVeto updates
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -998,6 +1206,14 @@ export const MapView: React.FC<MapViewProps> = ({
     } catch (e) {}
   };
 
+  const handleZoomIn = () => {
+    mapInstanceRef.current?.zoomIn();
+  };
+
+  const handleZoomOut = () => {
+    mapInstanceRef.current?.zoomOut();
+  };
+
   const handleRecenter = () => {
     const map = mapInstanceRef.current;
     if (map) {
@@ -1010,105 +1226,148 @@ export const MapView: React.FC<MapViewProps> = ({
   };
 
   return (
-    <div className="bg-[#0b172a] border border-[#1b2b45] rounded-xl overflow-hidden shadow-2xl flex flex-col h-full min-h-[570px] w-full relative">
+    <div className="bg-[#040a16] border border-[#1b2b45] rounded-xl overflow-hidden shadow-2xl relative w-full h-full min-h-[570px] flex flex-col">
       
-      {/* Top Map Header (Two Distinct Control Rows - Occupies Real Layout Space Above Map Canvas) */}
-      <div className="bg-[#070f1e] p-3 border-b border-[#1b2b45] flex flex-col gap-2.5 z-20 shrink-0">
+      {/* 1. Full 100% Height MapLibre GL DOM Container */}
+      <div
+        ref={mapContainerRef}
+        className="absolute inset-0 w-full h-full"
+      />
+
+      {/* 2. Floating In-Map Control Cockpit HUD (Top Overlay) */}
+      <div className="absolute top-2.5 inset-x-2.5 z-20 pointer-events-none flex flex-col gap-2">
         
-        {/* Row 1 — Map Title & Basemap Controls (Aligned Right) */}
-        <div className="flex flex-wrap items-center justify-between gap-2">
+        {/* HUD Row 1: Engine Title, Live GIS Sync, Live Zoom Indicator & Basemap Switchers */}
+        <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 bg-[#070f1e]/90 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#1b2b45]/80 shadow-2xl">
           
-          {/* Map Title Row & GIS Sync Status */}
+          {/* Left: GIS Engine Branding & Sync Status */}
           <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-200 flex items-center gap-1.5 font-mono">
-              <Navigation className="w-3.5 h-3.5 text-cyan-400" />
-              <span>Bay of Bengal GIS Engine — MapLibre GL</span>
+            <span className="text-xs font-bold text-slate-100 flex items-center gap-1.5 font-mono">
+              <Navigation className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <span className="tracking-wide">Bay of Bengal GIS Engine</span>
             </span>
 
-            <div className="h-4 w-px bg-[#1b2b45] mx-0.5 hidden sm:block"></div>
+            <div className="h-3.5 w-px bg-[#1b2b45] mx-0.5 hidden sm:block"></div>
 
             {/* Backend GIS Live Sync Pill */}
             <div className="hidden sm:flex items-center">
               {backendSyncStatus === 'synced' ? (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800 text-[10px] font-mono">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-emerald-950/80 text-emerald-300 border border-emerald-800/80 text-[10px] font-mono">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
                   <span>GIS SYNCED</span>
                 </span>
               ) : backendSyncStatus === 'syncing' ? (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800 text-[10px] font-mono">
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-cyan-950/80 text-cyan-300 border border-cyan-800/80 text-[10px] font-mono">
                   <RefreshCw className="w-2.5 h-2.5 animate-spin text-cyan-400" />
                   <span>SYNCING...</span>
                 </span>
               ) : (
-                <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800 text-[10px] font-mono">
+                <span className="flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/80 text-amber-300 border border-amber-800/80 text-[10px] font-mono">
                   <span>OFFLINE DEMO</span>
                 </span>
               )}
             </div>
+
+            {/* Active Sector Name Pill */}
+            <div className="hidden md:flex items-center gap-1 px-2 py-0.5 rounded bg-[#0f172a]/90 border border-cyan-900/60 text-[10px] text-cyan-300 font-mono">
+              <Anchor className="w-3 h-3 text-cyan-400" />
+              <span>{activeSectorTitle}</span>
+            </div>
           </div>
 
-          {/* Basemap Controls (DARK, OCEAN, SATELLITE, COASTAL) */}
-          <div className="flex items-center gap-1 text-[10px] font-mono">
-            <button
-              onClick={() => handleBasemapChange('dark')}
-              className={`h-7 px-2.5 rounded border transition flex items-center gap-1 font-semibold ${
-                activeBasemap === 'dark'
-                  ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500 shadow-xs'
-                  : 'bg-[#0a1220] text-slate-400 border-[#1c2838] hover:text-slate-200'
-              }`}
-              title="Esri World Dark Gray Canvas (High-Res Marine GIS)"
-            >
-              <Globe className="w-3 h-3" />
-              <span>DARK</span>
-            </button>
+          {/* Right: Zoom % Indicator Pill & Basemap Controls */}
+          <div className="flex items-center gap-1.5 text-[10px] font-mono">
+            {/* Zoom Indicator Pill (+20% for Chennai) */}
+            <div className="flex items-center gap-1 bg-[#0b1322] border border-cyan-500/40 px-2 py-0.5 rounded-lg text-cyan-300 shadow-inner">
+              <span className="font-extrabold">ZOOM: {currentMapZoom || targetZoom}</span>
+              {(currentMapZoom >= 10.5 || targetZoom >= 10.5) && (
+                <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-500/20 text-cyan-200 border border-cyan-400/40 font-bold">
+                  +20% CHENNAI
+                </span>
+              )}
+              <div className="flex items-center ml-1 border-l border-[#1b2b45] pl-1 gap-0.5">
+                <button
+                  onClick={handleZoomIn}
+                  className="w-4 h-4 rounded flex items-center justify-center bg-[#15233c] hover:bg-cyan-500 hover:text-slate-950 text-slate-200 font-bold transition"
+                  title="Zoom In (+)"
+                >
+                  +
+                </button>
+                <button
+                  onClick={handleZoomOut}
+                  className="w-4 h-4 rounded flex items-center justify-center bg-[#15233c] hover:bg-cyan-500 hover:text-slate-950 text-slate-200 font-bold transition"
+                  title="Zoom Out (-)"
+                >
+                  -
+                </button>
+              </div>
+            </div>
 
-            <button
-              onClick={() => handleBasemapChange('ocean')}
-              className={`h-7 px-2.5 rounded border transition flex items-center gap-1 font-semibold ${
-                activeBasemap === 'ocean'
-                  ? 'bg-blue-950/90 text-blue-300 border-blue-500 shadow-xs'
-                  : 'bg-[#0a1220] text-slate-400 border-[#1c2838] hover:text-slate-200'
-              }`}
-              title="Esri Ocean Bathymetry & Depth Contours"
-            >
-              <Waves className="w-3 h-3" />
-              <span>OCEAN</span>
-            </button>
+            {/* Basemap Mode Switcher Buttons */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => handleBasemapChange('dark')}
+                className={`h-6 px-2 rounded border transition flex items-center gap-1 font-semibold ${
+                  activeBasemap === 'dark'
+                    ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500 shadow-xs'
+                    : 'bg-[#0a1220]/90 text-slate-400 border-[#1c2838] hover:text-slate-200'
+                }`}
+                title="Esri World Dark Gray Canvas (High-Res Marine GIS)"
+              >
+                <Globe className="w-2.5 h-2.5" />
+                <span>DARK</span>
+              </button>
 
-            <button
-              onClick={() => handleBasemapChange('satellite')}
-              className={`h-7 px-2.5 rounded border transition flex items-center gap-1 font-semibold ${
-                activeBasemap === 'satellite'
-                  ? 'bg-amber-950/90 text-amber-300 border-amber-500 shadow-xs'
-                  : 'bg-[#0a1220] text-slate-400 border-[#1c2838] hover:text-slate-200'
-              }`}
-              title="ESRI World Imagery Satellite"
-            >
-              <Satellite className="w-3 h-3" />
-              <span>SATELLITE</span>
-            </button>
+              <button
+                onClick={() => handleBasemapChange('ocean')}
+                className={`h-6 px-2 rounded border transition flex items-center gap-1 font-semibold ${
+                  activeBasemap === 'ocean'
+                    ? 'bg-blue-950/90 text-blue-300 border-blue-500 shadow-xs'
+                    : 'bg-[#0a1220]/90 text-slate-400 border-[#1c2838] hover:text-slate-200'
+                }`}
+                title="Esri Ocean Bathymetry & Depth Contours"
+              >
+                <Waves className="w-2.5 h-2.5" />
+                <span>OCEAN</span>
+              </button>
 
-            <button
-              onClick={() => handleBasemapChange('streets')}
-              className={`h-7 px-2.5 rounded border transition flex items-center gap-1 font-semibold ${
-                activeBasemap === 'streets'
-                  ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-xs'
-                  : 'bg-[#0a1220] text-slate-400 border-[#1c2838] hover:text-slate-200'
-              }`}
-              title="OpenStreetMap Coastal Navigation"
-            >
-              <MapIcon className="w-3 h-3" />
-              <span>COASTAL</span>
-            </button>
+              <button
+                onClick={() => handleBasemapChange('satellite')}
+                className={`h-6 px-2 rounded border transition flex items-center gap-1 font-semibold ${
+                  activeBasemap === 'satellite'
+                    ? 'bg-amber-950/90 text-amber-300 border-amber-500 shadow-xs'
+                    : 'bg-[#0a1220]/90 text-slate-400 border-[#1c2838] hover:text-slate-200'
+                }`}
+                title="ESRI World Imagery Satellite"
+              >
+                <Satellite className="w-2.5 h-2.5" />
+                <span>SAT</span>
+              </button>
+
+              <button
+                onClick={() => handleBasemapChange('streets')}
+                className={`h-6 px-2 rounded border transition flex items-center gap-1 font-semibold ${
+                  activeBasemap === 'streets'
+                    ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-xs'
+                    : 'bg-[#0a1220]/90 text-slate-400 border-[#1c2838] hover:text-slate-200'
+                }`}
+                title="OpenStreetMap Coastal Navigation"
+              >
+                <MapIcon className="w-2.5 h-2.5" />
+                <span>COAST</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Row 2 — Marine Layer Controls (PFZ, SST, CHL, WIND, HAZARDS, VESSELS, ROUTE, RECENTER) */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[#1b2b45]/60 pt-2">
-          <div className="flex flex-wrap items-center gap-1.5 text-[11px] font-mono">
+        {/* HUD Row 2: Marine Layer Controls & Quick Scenario Presets */}
+        <div className="pointer-events-auto flex flex-wrap items-center justify-between gap-2 bg-[#070f1e]/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-[#1b2b45]/70 shadow-lg">
+          
+          {/* Layer Toggles */}
+          <div className="flex flex-wrap items-center gap-1 text-[10px] font-mono">
             <button
               onClick={() => toggleLayer('pfz')}
-              className={`h-7 px-2.5 rounded-md border transition font-bold flex items-center justify-center ${
+              className={`h-6 px-2 rounded border transition font-bold ${
                 layerVisibility.pfz
                   ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
                   : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
@@ -1119,7 +1378,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
             <button
               onClick={() => toggleLayer('sst')}
-              className={`h-7 px-2.5 rounded-md border transition font-bold flex items-center justify-center ${
+              className={`h-6 px-2 rounded border transition font-bold ${
                 layerVisibility.sst
                   ? 'bg-amber-950/90 text-amber-300 border-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.3)]'
                   : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
@@ -1130,7 +1389,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
             <button
               onClick={() => toggleLayer('chl')}
-              className={`h-7 px-2.5 rounded-md border transition font-bold flex items-center justify-center ${
+              className={`h-6 px-2 rounded border transition font-bold ${
                 layerVisibility.chl
                   ? 'bg-emerald-950/90 text-emerald-300 border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]'
                   : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
@@ -1141,7 +1400,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
             <button
               onClick={() => toggleLayer('wind')}
-              className={`h-7 px-2.5 rounded-md border transition font-bold flex items-center justify-center ${
+              className={`h-6 px-2 rounded border transition font-bold ${
                 layerVisibility.wind
                   ? 'bg-blue-950/90 text-blue-300 border-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.3)]'
                   : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
@@ -1152,7 +1411,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
             <button
               onClick={() => toggleLayer('hazards')}
-              className={`h-7 px-2.5 rounded-md border transition font-bold flex items-center justify-center ${
+              className={`h-6 px-2 rounded border transition font-bold ${
                 layerVisibility.hazards
                   ? 'bg-red-950/90 text-red-300 border-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
                   : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
@@ -1163,7 +1422,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
             <button
               onClick={() => toggleLayer('vessels')}
-              className={`h-7 px-2.5 rounded-md border transition font-bold flex items-center justify-center ${
+              className={`h-6 px-2 rounded border transition font-bold ${
                 layerVisibility.vessels
                   ? 'bg-sky-950/90 text-sky-300 border-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.3)]'
                   : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
@@ -1174,7 +1433,7 @@ export const MapView: React.FC<MapViewProps> = ({
 
             <button
               onClick={() => toggleLayer('route')}
-              className={`h-7 px-2.5 rounded-md border transition font-bold flex items-center justify-center ${
+              className={`h-6 px-2 rounded border transition font-bold ${
                 layerVisibility.route
                   ? 'bg-cyan-950/90 text-cyan-300 border-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.3)]'
                   : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
@@ -1182,105 +1441,131 @@ export const MapView: React.FC<MapViewProps> = ({
             >
               ROUTE
             </button>
-          </div>
 
-          <button
-            onClick={handleRecenter}
-            className="h-7 px-2 rounded-md bg-[#091322] text-slate-400 hover:text-cyan-300 border border-[#1b2b45] transition flex items-center gap-1 font-mono text-[10px]"
-            title="Recenter Map Camera"
-          >
-            <RotateCcw className="w-3 h-3" />
-            <span>RECENTER</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main MapLibre GL Rendering Viewport (Starts Strictly Below MapHeader) */}
-      <div className="relative flex-1 bg-[#040a16] overflow-hidden min-h-0 w-full h-full">
-        
-        {/* Real MapLibre GL DOM Container */}
-        <div
-          ref={mapContainerRef}
-          className="absolute inset-0 w-full h-full"
-        />
-
-        {/* Loading Indicator Overlay */}
-        {mapStatus === 'loading' && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#070f1e]/80 backdrop-blur-xs">
-            <div className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin mb-2"></div>
-            <span className="text-xs font-mono text-cyan-300 tracking-wider">
-              LOADING MARINE GIS ENGINE...
-            </span>
-          </div>
-        )}
-
-        {/* Error Fallback Overlay */}
-        {mapStatus === 'error' && (
-          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-[#070f1e] p-4 text-center">
-            <AlertTriangle className="w-8 h-8 text-amber-400 mb-2" />
-            <h4 className="text-sm font-bold text-slate-200">Unable to initialize WebGL map</h4>
-            <p className="text-xs text-slate-400 mt-1 max-w-sm">
-              Please ensure hardware acceleration or WebGL is enabled in your browser.
-            </p>
             <button
-              onClick={() => window.location.reload()}
-              className="mt-3 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-semibold"
+              onClick={() => toggleLayer('ports')}
+              className={`h-6 px-2 rounded border transition font-bold ${
+                layerVisibility.ports
+                  ? 'bg-sky-950/90 text-sky-300 border-sky-500 shadow-[0_0_8px_rgba(56,189,248,0.3)]'
+                  : 'bg-[#091322]/80 text-slate-500 border-[#1b2b45] hover:text-slate-400'
+              }`}
             >
-              Reload Page
+              HARBOURS
             </button>
           </div>
-        )}
 
-        {/* Active Hazard Veto Banner */}
-        {isVeto && layerVisibility.hazards && mapStatus === 'ready' && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 bg-red-950/90 border-2 border-red-500 p-3.5 rounded-xl max-w-sm text-center backdrop-blur-md shadow-2xl">
-            <AlertTriangle className="w-7 h-7 text-red-500 mx-auto mb-1 animate-bounce" />
-            <h4 className="font-bold text-xs text-red-300 uppercase tracking-wider font-mono">
-              CYCLONE HAZARD ZONE ACTIVE
-            </h4>
-            <p className="text-[11px] text-red-200 mt-1">
-              IMD Severe Cyclonic Storm Warning • Gale winds 45-55 kts
-            </p>
-          </div>
-        )}
+          {/* Right: Quick Scenario Preset Buttons inside Map & Recenter */}
+          <div className="flex items-center gap-1.5 text-[10px] font-mono">
+            {onSelectPreset && (
+              <div className="hidden sm:flex items-center gap-1 border-r border-[#1b2b45] pr-1.5">
+                <button
+                  onClick={() => onSelectPreset('scenario_01', 'Where should I fish tomorrow near Chennai?')}
+                  className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
+                    activePreset === 'scenario_01'
+                      ? 'bg-cyan-400 text-slate-950 border-cyan-300 shadow-md shadow-cyan-500/30'
+                      : 'bg-[#0a1220] text-cyan-300 border-cyan-900/60 hover:border-cyan-500'
+                  }`}
+                  title="Focus Chennai & Harbours (+20% Zoom)"
+                >
+                  <span>CHENNAI +20%</span>
+                </button>
 
-        {/* Sector Name Badge */}
-        {mapStatus === 'ready' && (
-          <div className="absolute top-3 left-3 z-20 bg-[#070f1e]/85 border border-[#1b2b45] px-2.5 py-1 rounded-md text-[10px] text-slate-300 flex items-center gap-1.5 backdrop-blur-xs font-mono">
-            <Anchor className="w-3 h-3 text-cyan-400" />
-            <span className="text-slate-200 font-semibold">{activeSectorTitle}</span>
-          </div>
-        )}
-
-        {/* Map Legend Footer */}
-        {mapStatus === 'ready' && (
-          <div className="absolute bottom-3 right-3 z-20 bg-[#070f1e]/90 border border-[#1b2b45] px-3 py-1.5 rounded-md text-[10px] text-slate-300 flex items-center gap-3 backdrop-blur-xs font-mono shadow-lg">
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-              <span>PFZ Zone #12A</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span>
-              <span>Kasimedu Harbour</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
-              <span>Vessels</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
-              <span>SST Grid</span>
-            </div>
-            {isVeto && (
-              <div className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
-                <span className="text-red-300">Hazard</span>
+                <button
+                  onClick={() => onSelectPreset('scenario_02', 'Can I take my boat out tomorrow near Vizag?')}
+                  className={`h-6 px-2 rounded border transition font-bold flex items-center gap-1 ${
+                    activePreset === 'scenario_02'
+                      ? 'bg-red-600 text-white border-red-400 shadow-md shadow-red-600/30'
+                      : 'bg-[#0a1220] text-red-300 border-red-900/60 hover:border-red-500'
+                  }`}
+                  title="Cyclone Safety Veto"
+                >
+                  <span>VIZAG VETO</span>
+                </button>
               </div>
             )}
+
+            <button
+              onClick={handleRecenter}
+              className="h-6 px-2 rounded bg-[#091322] text-slate-300 hover:text-cyan-300 border border-[#1b2b45] transition flex items-center gap-1 font-mono text-[10px]"
+              title="Recenter Map Camera"
+            >
+              <RotateCcw className="w-2.5 h-2.5" />
+              <span>RECENTER</span>
+            </button>
           </div>
-        )}
+
+        </div>
 
       </div>
+
+      {/* Loading Indicator Overlay */}
+      {mapStatus === 'loading' && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#070f1e]/80 backdrop-blur-xs">
+          <div className="w-8 h-8 rounded-full border-2 border-cyan-400 border-t-transparent animate-spin mb-2"></div>
+          <span className="text-xs font-mono text-cyan-300 tracking-wider">
+            LOADING MARINE GIS ENGINE...
+          </span>
+        </div>
+      )}
+
+      {/* Error Fallback Overlay */}
+      {mapStatus === 'error' && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center bg-[#070f1e] p-4 text-center">
+          <AlertTriangle className="w-8 h-8 text-amber-400 mb-2" />
+          <h4 className="text-sm font-bold text-slate-200">Unable to initialize WebGL map</h4>
+          <p className="text-xs text-slate-400 mt-1 max-w-sm">
+            Please ensure hardware acceleration or WebGL is enabled in your browser.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-3 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-xs font-semibold"
+          >
+            Reload Page
+          </button>
+        </div>
+      )}
+
+      {/* Active Hazard Veto Banner */}
+      {isVeto && layerVisibility.hazards && mapStatus === 'ready' && (
+        <div className="absolute top-28 left-1/2 -translate-x-1/2 z-20 bg-red-950/90 border-2 border-red-500 p-3 rounded-xl max-w-sm text-center backdrop-blur-md shadow-2xl">
+          <AlertTriangle className="w-6 h-6 text-red-500 mx-auto mb-1 animate-bounce" />
+          <h4 className="font-bold text-xs text-red-300 uppercase tracking-wider font-mono">
+            CYCLONE HAZARD ZONE ACTIVE
+          </h4>
+          <p className="text-[11px] text-red-200 mt-0.5">
+            IMD Severe Cyclonic Storm Warning • Gale winds 45-55 kts
+          </p>
+        </div>
+      )}
+
+      {/* Map Legend Footer */}
+      {mapStatus === 'ready' && (
+        <div className="absolute bottom-3 right-3 z-20 bg-[#070f1e]/90 border border-[#1b2b45] px-3 py-1.5 rounded-md text-[10px] text-slate-300 flex items-center gap-3 backdrop-blur-xs font-mono shadow-lg">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span>PFZ Zone #12A</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse"></span>
+            <span>Chennai Harbours (4)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-sky-400"></span>
+            <span>Vessels</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+            <span>SST Grid</span>
+          </div>
+          {isVeto && (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse"></span>
+              <span className="text-red-300">Hazard</span>
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   );
 };

@@ -13,6 +13,9 @@ interface MarineMapProps {
   location?: string;
   query?: string;
   onSelectZone?: (zone: any) => void;
+  activePreset?: 'scenario_01' | 'scenario_02' | 'scenario_03' | null;
+  onSelectPreset?: (id: 'scenario_01' | 'scenario_02' | 'scenario_03', q: string) => void;
+  executeTrigger?: number;
 }
 
 export const MarineMap: React.FC<MarineMapProps> = ({
@@ -25,7 +28,10 @@ export const MarineMap: React.FC<MarineMapProps> = ({
   response,
   location,
   query,
-  onSelectZone
+  onSelectZone,
+  activePreset,
+  onSelectPreset,
+  executeTrigger
 }) => {
   return (
     <div className="w-full h-full">
@@ -38,6 +44,9 @@ export const MarineMap: React.FC<MarineMapProps> = ({
         query={query}
         selectedZoneId={selectedZone?.id || (selectedZone as any)?.zone_id}
         onSelectZone={onSelectZone}
+        activePreset={activePreset}
+        onSelectPreset={onSelectPreset}
+        executeTrigger={executeTrigger}
       />
     </div>
   );

@@ -20,6 +20,15 @@ HARBOUR_COORDS: Dict[str, List[float]] = {
     "Royapuram Fishing Harbour (Kasimedu)": [80.2974, 13.1258],
     "Kasimedu Fishing Harbour": [80.2974, 13.1258],
     "Chennai": [80.2974, 13.1258],
+    "Chennai Port (Madras Harbour)": [80.2989, 13.0844],
+    "Chennai Port": [80.2989, 13.0844],
+    "Madras Harbour": [80.2989, 13.0844],
+    "Kamarajar Port (Ennore Harbour)": [80.3317, 13.2611],
+    "Kamarajar Port": [80.3317, 13.2611],
+    "Ennore Port": [80.3317, 13.2611],
+    "Kattupalli Port & Shipyard Harbour": [80.3450, 13.3100],
+    "Kattupalli Port": [80.3450, 13.3100],
+    "Kattupalli Harbour": [80.3450, 13.3100],
     "Visakhapatnam Fishing Harbour": [83.3032, 17.6974],
     "Visakhapatnam": [83.3032, 17.6974],
     "Vizag": [83.3032, 17.6974],
@@ -36,8 +45,8 @@ SECTOR_PRESETS: Dict[str, Dict[str, Any]] = {
     "chennai": {
         "sector_id": "chennai",
         "name": "Chennai Offshore East Sector",
-        "center": [80.4600, 13.1200],
-        "zoom": 8.8,
+        "center": [80.3600, 13.1500],
+        "zoom": 10.8,
         "primary_harbour": "Royapuram Fishing Harbour (Kasimedu)",
         "harbour_coords": [80.2974, 13.1258],
         "target_zone": [80.6210, 13.1850],
@@ -49,7 +58,7 @@ SECTOR_PRESETS: Dict[str, Dict[str, Any]] = {
         "sector_id": "visakhapatnam",
         "name": "Visakhapatnam Coastal Sector",
         "center": [83.3032, 17.6974],
-        "zoom": 7.5,
+        "zoom": 9.8,
         "primary_harbour": "Visakhapatnam Fishing Harbour",
         "harbour_coords": [83.3032, 17.6974],
         "target_zone": [83.5800, 17.5200],
@@ -61,7 +70,7 @@ SECTOR_PRESETS: Dict[str, Dict[str, Any]] = {
         "sector_id": "kochi",
         "name": "Kochi & Munambam Deep Sea",
         "center": [76.1683, 10.1812],
-        "zoom": 8.5,
+        "zoom": 10.0,
         "primary_harbour": "Munambam Fishing Harbour",
         "harbour_coords": [76.1683, 10.1812],
         "target_zone": [75.8540, 10.2110],
@@ -73,7 +82,7 @@ SECTOR_PRESETS: Dict[str, Dict[str, Any]] = {
         "sector_id": "mangalore",
         "name": "Old Mangalore Coast & Shelf",
         "center": [74.8320, 12.8550],
-        "zoom": 8.5,
+        "zoom": 10.0,
         "primary_harbour": "Old Mangalore Port Jetty",
         "harbour_coords": [74.8320, 12.8550],
         "target_zone": [74.5000, 12.7500],
@@ -110,14 +119,40 @@ def _destination_point(lon: float, lat: float, distance_km: float, bearing_deg: 
 
 def _resolve_sector_key(location: Optional[str] = None, query: Optional[str] = None, harbour: Optional[str] = None) -> str:
     combined = f"{location or ''} {query or ''} {harbour or ''}".lower()
-    if any(k in combined for k in ["vizag", "visakhapatnam", "cyclone", "andhra", "விசாகப்பட்டினம்"]):
+
+    # 1. Visakhapatnam / Andhra coast / or nearest inland cities (Hyderabad, Vijayawada, Delhi, Nagpur, Kolkata)
+    if any(k in combined for k in [
+        "vizag", "visakhapatnam", "cyclone", "andhra", "விசாகப்பட்டினம்", "విశాఖపట్నం", "వైజాగ్",
+        "vzag", "vishaka", "waltair", "bheemili", "kakinada", "machilipatnam",
+        "hyderabad", "hydrabad", "secunderabad", "vijayawada", "amaravati", "guntur", "delhi", "kolkata", "nagpur"
+    ]):
         return "visakhapatnam"
-    if any(k in combined for k in ["kochi", "cochin", "munambam", "kerala", "கொச்சி"]):
+
+    # 2. Kochi / Kerala coast / or nearest inland cities (Coimbatore)
+    if any(k in combined for k in [
+        "kochi", "cochin", "munambam", "kerala", "கொச்சி", "കൊച്ചി",
+        "ernakulam", "alappuzha", "alleppey", "trivandrum", "thiruvananthapuram", "calicut", "kozhikode",
+        "coimbatore", "kovai", "palakkad"
+    ]):
         return "kochi"
-    if any(k in combined for k in ["mangalore", "mangaluru", "karnataka", "swell", "மங்களூரு"]):
+
+    # 3. Mangalore / Karnataka coast / or nearest inland cities (Mysore, Hubli, Pune)
+    if any(k in combined for k in [
+        "mangalore", "mangaluru", "karnataka", "swell", "மங்களூரு", "ಮಂಗಳೂರು",
+        "mangler", "manglore", "udupi", "malpe", "karwar", "goa", "panaji",
+        "mysore", "mysuru", "hubli", "dharwad", "pune"
+    ]):
         return "mangalore"
-    if any(k in combined for k in ["chennai", "kasimedu", "royapuram", "சென்னை"]):
+
+    # 4. Chennai / Tamil Nadu coast / or nearest inland cities (Bangalore, Tirupati, Vellore, Salem, Trichy, Madurai)
+    if any(k in combined for k in [
+        "chennai", "kasimedu", "royapuram", "சென்னை", "madras", "ennore", "kattupalli",
+        "chenai", "chnnai", "chennay", "kashimedu", "kasmedu",
+        "cuddalore", "pondicherry", "puducherry",
+        "bangalore", "bengaluru", "banglore", "tirupati", "vellore", "salem", "trichy", "tiruchirappalli", "madurai"
+    ]):
         return "chennai"
+
     return "chennai"
 
 
@@ -416,7 +451,7 @@ def get_map_layers(
                     "status": "Active Fishing inside PFZ",
                     "harbour": "Kasimedu Harbour"
                 },
-                "geometry": {"type": "Point", "coordinates": [80.5210, 13.1420]}
+                "geometry": {"type": "Point", "coordinates": [80.5500, 13.2300]}
             },
             {
                 "type": "Feature",

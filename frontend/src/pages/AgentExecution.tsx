@@ -9,7 +9,7 @@ interface AgentExecutionProps {
 }
 
 export const AgentExecution: React.FC<AgentExecutionProps> = ({ response, onQuerySubmit, isLoading = false }) => {
-  const [queryInput, setQueryInput] = useState('Where should I fish tomorrow near Chennai?');
+  const [queryInput, setQueryInput] = useState('');
   const [activeLang, setActiveLang] = useState<'EN' | 'TA'>('EN');
 
   const handleSubmit = (e: React.FormEvent) => {
