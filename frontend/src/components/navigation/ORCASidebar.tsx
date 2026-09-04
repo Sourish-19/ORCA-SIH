@@ -2,7 +2,6 @@ import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   Cpu,
-  Plus,
   Zap,
   Anchor,
   Activity,
@@ -28,15 +27,6 @@ export const ORCASidebar: React.FC = () => {
             <p className="text-[10px] text-on-surface-variant font-mono font-semibold">MULTI-AGENT REASONING</p>
           </div>
         </div>
-
-        {/* Bright Cyan Action Button */}
-        <button
-          onClick={() => window.location.href = '/'}
-          className="w-full py-2.5 bg-primary hover:bg-primary-fixed-dim text-on-primary-fixed font-black text-xs uppercase tracking-wider rounded flex items-center justify-center gap-2 transition shadow-md shadow-primary/20"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>NEW MISSION</span>
-        </button>
 
         {/* Main Nav Items List */}
         <nav className="space-y-1 text-xs font-sans">

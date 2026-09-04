@@ -1,6 +1,5 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Bell, Settings, User, MapPin } from 'lucide-react';
 import { PersonaMode, DataMode } from '../../types';
 
 interface ORCAHeaderProps {
@@ -68,19 +67,6 @@ export const ORCAHeader: React.FC<ORCAHeaderProps> = ({
           >
             Fisherman
           </button>
-        </div>
-
-        {/* Top Right Controls */}
-        <div className="flex items-center gap-3 text-on-surface">
-          <button className="p-2 hover:text-primary hover:bg-surface-container-high rounded transition">
-            <Bell className="w-4.5 h-4.5" />
-          </button>
-          <button className="p-2 hover:text-primary hover:bg-surface-container-high rounded transition">
-            <Settings className="w-4.5 h-4.5" />
-          </button>
-          <div className="w-8 h-8 rounded-full bg-surface-container-highest border border-primary/50 flex items-center justify-center text-on-surface overflow-hidden">
-            <User className="w-4 h-4 text-primary" />
-          </div>
         </div>
 
       </div>
