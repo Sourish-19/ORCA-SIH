@@ -54,5 +54,5 @@ ORCA_LLM_PROVIDER = os.getenv("ORCA_LLM_PROVIDER", "groq")  # "groq", "gemini", 
 ORCA_LLM_MODEL = os.getenv("ORCA_LLM_MODEL", "qwen/qwen3.6-27b")
 ORCA_LLM_ENABLED = os.getenv("ORCA_LLM_ENABLED", "auto")
 ORCA_LLM_TIMEOUT_SECONDS = float(os.getenv("ORCA_LLM_TIMEOUT_SECONDS", "12.0"))
-ORCA_LLM_MAX_OUTPUT_TOKENS = int(os.getenv("ORCA_LLM_MAX_OUTPUT_TOKENS", "350"))
+ORCA_LLM_MAX_OUTPUT_TOKENS = int(os.getenv("ORCA_LLM_MAX_OUTPUT_TOKENS", "800"))
 

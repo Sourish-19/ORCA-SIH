@@ -1,19 +1,23 @@
 """
 LLM Explainer Service - plain-language narration grounded in VerifiedContext.
 
-Provider Fallback Stack:
-  1. Groq API (Primary: openai/gpt-oss-20b, Fallback: qwen/qwen3.6-27b)
+Provider Hierarchy:
+  1. Groq API (Primary: openai/gpt-oss-20b, Secondary: qwen/qwen3.6-27b)
   2. Google Gemini API (Tertiary: gemini-flash-latest)
-  3. Deterministic ORCA Template Engine (Final Guardrail Fallback)
+  3. Deterministic ORCA Template Engine (Emergency Guardrail Fallback ONLY)
 
 All models receive the exact same VERIFIED_CONTEXT JSON and undergo strict
 post-generation fact & safety validation.
 """
 
 import json
+import logging
+import os
 import re
+import sys
 import time
 from typing import Any, Dict, Optional, Set, Tuple
+import urllib.error
 import urllib.request
 
 from pydantic import BaseModel
@@ -27,9 +31,10 @@ from app.models.context_builder import (
     VerifiedSafety,
     VerifiedSpeciesInfo,
 )
-from app.models.decision import DecisionResult, LocationDecision
+from app.models.decision import DecisionResult
 from app.models.explanation import DecisionExplanation, LLMExplainerConfig
 
+logger = logging.getLogger("orca.llm_explainer")
 
 # Coastal place names known to ORCA
 _KNOWN_PLACES: Set[str] = {
@@ -69,10 +74,9 @@ def _normalize_digits(s: str) -> str:
 
 
 def _allowed_numbers_from_context(ctx_dict: Dict[str, Any]) -> Set[str]:
-    """Extract all integer and float numbers present in VerifiedContext."""
     blob = json.dumps(ctx_dict, ensure_ascii=False)
     raw_nums = set(re.findall(r"\d+", blob))
-    raw_nums |= {str(i) for i in range(0, 16)}
+    raw_nums |= {str(i) for i in range(0, 20)}
     raw_nums |= {"100", "50", "80", "90"}
     return raw_nums
 
@@ -146,7 +150,7 @@ def validate_llm_response(
         return False, "failed_null_parameter_hallucination:sst"
 
     # 6. Length Sanity
-    if not (15 <= len(narrative) <= 1500):
+    if not (15 <= len(narrative) <= 2500):
         return False, "failed_length_check"
 
     return True, None
@@ -178,20 +182,44 @@ def _system_prompt(language: str) -> str:
         "11. For Tamil queries, answer in Tamil while preserving technical/numerical values accurately.\n"
         "12. Never use external knowledge to fill missing marine data.\n"
         "13. DIRECTLY ANSWER THE USER'S SPECIFIC INTENT (e.g. if asked about species, discuss species; if asked about safety, discuss safety; if asked about SST/wind, discuss SST/wind; if asked about fishing location, discuss recommended zone).\n\n"
-        "Return strictly JSON matching:\n"
+        "Return strictly a valid JSON object matching:\n"
         '{"headline": "...", "narrative": "...", "answer": "...", "facts_used": [], "recommendation": null, "confidence": 0.9, "safety_status": "GO", "unsupported_claims": []}'
     )
+
+
+def safe_log(msg: str):
+    """Print to stderr using utf-8 buffer to prevent Windows CP1252 charmap errors."""
+    try:
+        sys.stderr.buffer.write((msg + "\n").encode("utf-8", errors="replace"))
+        sys.stderr.buffer.flush()
+    except Exception:
+        pass
 
 
 def _call_groq_api(
     context_dict: Dict[str, Any],
     language: str,
     cfg: LLMExplainerConfig,
-) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+    """
+    Returns (headline, narrative, answer, model_used, failure_reason).
+    """
     from app import config as app_config
-    api_key = getattr(app_config, "GROQ_API_KEY", None)
-    if not api_key:
-        return None, None, None, "no_api_key"
+    api_key = getattr(app_config, "GROQ_API_KEY", None) or os.getenv("GROQ_API_KEY", "")
+    
+    key_present = bool(api_key)
+    key_prefix = (api_key[:8] + "****") if key_present else "None"
+
+    safe_log("\n" + "=" * 60)
+    safe_log("GROQ DIAGNOSTIC CALL")
+    safe_log(f"Provider: groq")
+    safe_log(f"Base URL: https://api.groq.com/openai/v1")
+    safe_log(f"API Key Present: {key_present}")
+    safe_log(f"API Key Prefix: {key_prefix}")
+
+    if not key_present:
+        safe_log("ERROR: GROQ_API_KEY NOT FOUND in environment or app.config")
+        return None, None, None, None, "GROQ_API_KEY NOT FOUND"
 
     sys_p = _system_prompt(language)
     user_p = f"VERIFIED_CONTEXT:\n{json.dumps(context_dict, ensure_ascii=False, indent=2)}"
@@ -209,15 +237,19 @@ def _call_groq_api(
         "User-Agent": "ORCA/1.0",
     }
 
+    last_error_reason = "GROQ API UNKNOWN ERROR"
+
     for model_name in models_to_try:
+        safe_log(f"Attempting Groq Model: {model_name}")
         payload = {
             "model": model_name,
             "messages": [
                 {"role": "system", "content": sys_p},
                 {"role": "user", "content": user_p},
             ],
-            "max_tokens": min(cfg.max_output_tokens, 450),
+            "max_tokens": max(cfg.max_output_tokens, 800),
             "temperature": 0.1,
+            "response_format": {"type": "json_object"},
         }
 
         try:
@@ -228,39 +260,71 @@ def _call_groq_api(
                 method="POST"
             )
             with urllib.request.urlopen(req, timeout=cfg.timeout_seconds) as resp:
-                res_data = json.loads(resp.read().decode("utf-8"))
+                raw_bytes = resp.read()
+                res_data = json.loads(raw_bytes.decode("utf-8"))
                 content = res_data["choices"][0]["message"]["content"]
+                
+                safe_log(f"Groq Model '{model_name}' HTTP 200 OK. Response length: {len(content)} chars.")
                 
                 h, n, a = _parse_llm_json(content)
                 if h and n:
-                    return h, n, a or n, None
-        except Exception:
-            continue
+                    safe_log(f"GROQ CALL SUCCESSFUL using model '{model_name}'.")
+                    safe_log("=" * 60 + "\n")
+                    return h, n, a or n, model_name, None
+                else:
+                    safe_log(f"Groq model '{model_name}' returned 200 OK but JSON parsing failed.")
+                    last_error_reason = f"GROQ REQUEST ERROR: Failed to parse JSON fields from output"
+        except urllib.error.HTTPError as exc:
+            err_body = exc.read().decode("utf-8", errors="replace")
+            safe_log(f"GROQ HTTP ERROR {exc.code} for model {model_name}: {exc.reason}")
+            safe_log(f"Response Body: {err_body}")
 
-    return None, None, None, "groq_api_failed"
+            if exc.code == 401:
+                last_error_reason = f"GROQ AUTHENTICATION FAILED: {exc.reason} (401)"
+            elif exc.code == 404 or exc.code == 400:
+                last_error_reason = f"GROQ MODEL ERROR ({exc.code}): {exc.reason} - {err_body[:100]}"
+            elif exc.code == 429:
+                last_error_reason = f"GROQ RATE LIMIT (429): {exc.reason}"
+            else:
+                last_error_reason = f"GROQ HTTP ERROR ({exc.code}): {exc.reason}"
+
+        except urllib.error.URLError as exc:
+            safe_log(f"GROQ NETWORK ERROR for model {model_name}: {exc.reason}")
+            last_error_reason = f"GROQ NETWORK ERROR: {exc.reason}"
+        except Exception as exc:
+            safe_log(f"GROQ EXCEPTION for model {model_name}: {type(exc).__name__}: {str(exc)}")
+            last_error_reason = f"GROQ EXCEPTION ({type(exc).__name__}): {str(exc)}"
+
+    safe_log(f"All Groq models failed. Last error: {last_error_reason}")
+    safe_log("=" * 60 + "\n")
+    return None, None, None, None, last_error_reason
 
 
 def _call_gemini_api(
     context_dict: Dict[str, Any],
     language: str,
     cfg: LLMExplainerConfig,
-) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str]]:
+) -> Tuple[Optional[str], Optional[str], Optional[str], Optional[str], Optional[str]]:
+    """Returns (headline, narrative, answer, model_used, failure_reason)."""
     try:
         from google import genai
         from google.genai import types
     except ImportError:
-        return None, None, None, "sdk_not_installed"
+        return None, None, None, None, "GEMINI SDK NOT INSTALLED"
 
     from app import config as app_config
-    api_key = getattr(app_config, "GEMINI_API_KEY", None)
+    api_key = getattr(app_config, "GEMINI_API_KEY", None) or os.getenv("GEMINI_API_KEY", "")
     if not api_key:
-        return None, None, None, "no_api_key"
+        return None, None, None, None, "GEMINI_API_KEY NOT FOUND"
+
+    model_name = getattr(cfg, "model", "gemini-flash-latest")
+    safe_log(f"Attempting Gemini Fallback Model: {model_name}")
 
     gen_config = types.GenerateContentConfig(
         system_instruction=_system_prompt(language),
         response_mime_type="application/json",
         response_schema=StructuredLLMResponse,
-        max_output_tokens=cfg.max_output_tokens,
+        max_output_tokens=max(cfg.max_output_tokens, 800),
         temperature=0.1,
         automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True),
     )
@@ -269,7 +333,7 @@ def _call_gemini_api(
         client = genai.Client(api_key=api_key)
         payload = json.dumps(context_dict, ensure_ascii=False, indent=2)
         response = client.models.generate_content(
-            model=cfg.model, contents=payload, config=gen_config
+            model=model_name, contents=payload, config=gen_config
         )
         
         parsed_obj = getattr(response, "parsed", None)
@@ -278,21 +342,36 @@ def _call_gemini_api(
             n = str(getattr(parsed_obj, "narrative", "") or "").strip()
             a = str(getattr(parsed_obj, "answer", "") or "").strip()
             if h and n:
-                return h, n, a or n, None
+                return h, n, a or n, model_name, None
 
         raw = (getattr(response, "text", None) or "").strip()
         h, n, a = _parse_llm_json(raw)
         if h and n:
-            return h, n, a or n, None
+            return h, n, a or n, model_name, None
 
     except Exception as exc:
-        return None, None, None, f"gemini_error:{type(exc).__name__}"
+        safe_log(f"Gemini API Exception: {type(exc).__name__}: {str(exc)}")
+        return None, None, None, None, f"GEMINI ERROR ({type(exc).__name__}): {str(exc)}"
 
-    return None, None, None, "gemini_empty_output"
+    return None, None, None, None, "GEMINI EMPTY OUTPUT"
 
 
 def _parse_llm_json(content: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
     cleaned = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+    
+    # 1. Try parsing directly
+    try:
+        data = json.loads(cleaned)
+        if isinstance(data, dict):
+            h = str(data.get("headline", "")).strip()
+            n = str(data.get("narrative", "")).strip()
+            a = str(data.get("answer", "")).strip()
+            if h and n:
+                return h, n, a
+    except Exception:
+        pass
+
+    # 2. Try non-greedy / greedy match for JSON block
     match = re.search(r"\{.*\}", cleaned, re.DOTALL)
     if match:
         try:
@@ -305,6 +384,7 @@ def _parse_llm_json(content: str) -> Tuple[Optional[str], Optional[str], Optiona
                     return h, n, a
         except Exception:
             pass
+
     return None, None, None
 
 
@@ -432,12 +512,13 @@ def explain_decision_context(
 ) -> DecisionExplanation:
     """
     Public Entry Point: Generates grounded plain-language explanation from VerifiedContext.
+    Follows hierarchy: Groq (Primary) -> Gemini (Secondary) -> Emergency Fallback.
     """
     cfg = config or LLMExplainerConfig.from_env()
     ctx_dict = context.to_dict()
     language = context.detected_language
 
-    def _fallback(reason: Optional[str], grounding_ok: bool) -> DecisionExplanation:
+    def _emergency_fallback(reason: Optional[str], grounding_ok: bool) -> DecisionExplanation:
         headline, narrative = _deterministic_template_fallback(context)
         return DecisionExplanation(
             headline=headline,
@@ -451,34 +532,54 @@ def explain_decision_context(
         )
 
     if not cfg.enabled:
-        return _fallback("llm_disabled", True)
+        return _emergency_fallback("LLM_DISABLED", True)
 
-    headline, narrative, answer, reason = _call_groq_api(ctx_dict, language, cfg)
+    # Step 1: Try Groq API (openai/gpt-oss-20b → qwen/qwen3.6-27b)
+    headline, narrative, answer, groq_model, groq_error = _call_groq_api(ctx_dict, language, cfg)
 
-    if reason is not None:
-        headline, narrative, answer, gem_reason = _call_gemini_api(ctx_dict, language, cfg)
-        if gem_reason is not None:
-            return _fallback(reason, True)
+    if groq_error is None and headline and narrative:
+        # Validate Groq Output
+        ok, fail_reason = validate_llm_response(headline, narrative, answer or narrative, context)
+        if ok:
+            safe_log(f"GROQ GENERATION & VALIDATION SUCCESSFUL with model: {groq_model}")
+            return DecisionExplanation(
+                headline=headline,
+                narrative=narrative,
+                language=language,
+                audience="fisherman",
+                model_used=groq_model,
+                is_fallback=False,
+                grounding_ok=True,
+                fallback_reason=None,
+            )
+        else:
+            safe_log(f"Groq model {groq_model} succeeded but failed Fact Validator: {fail_reason}")
 
-    ok, fail_reason = validate_llm_response(headline, narrative, answer or narrative, context)
-    if not ok:
-        return _fallback(fail_reason, False)
+    # Step 2: Try Gemini API if Groq failed
+    safe_log(f"Groq API failed or output invalid. Reason: {groq_error}. Attempting Gemini...")
+    headline, narrative, answer, gem_model, gem_error = _call_gemini_api(ctx_dict, language, cfg)
 
-    model_name = getattr(cfg, "model", "openai/gpt-oss-20b")
-    return DecisionExplanation(
-        headline=headline,
-        narrative=narrative,
-        language=language,
-        audience="fisherman",
-        model_used=model_name,
-        is_fallback=False,
-        grounding_ok=True,
-        fallback_reason=None,
-    )
+    if gem_error is None and headline and narrative:
+        ok, fail_reason = validate_llm_response(headline, narrative, answer or narrative, context)
+        if ok:
+            safe_log(f"GEMINI GENERATION & VALIDATION SUCCESSFUL with model: {gem_model}")
+            return DecisionExplanation(
+                headline=headline,
+                narrative=narrative,
+                language=language,
+                audience="fisherman",
+                model_used=gem_model,
+                is_fallback=False,
+                grounding_ok=True,
+                fallback_reason=None,
+            )
+
+    # Step 3: Emergency Fallback
+    safe_log(f"All LLMs failed or invalid. Triggering Emergency Template Fallback. Reason: {groq_error}")
+    return _emergency_fallback(groq_error or "ALL_LLMS_FAILED", True)
 
 
 def build_briefing(result: DecisionResult) -> Dict[str, Any]:
-    """Backward compatibility helper for DecisionResult briefing."""
     top = result.top_recommendation
     rec = None
     if top and not result.safety_veto_active:
@@ -504,10 +605,6 @@ def explain_decision(
     query: Optional[str] = None,
     config: Optional[LLMExplainerConfig] = None,
 ) -> DecisionExplanation:
-    """
-    Backward compatibility wrapper for DecisionResult.
-    Builds a VerifiedContext and delegates to explain_decision_context.
-    """
     top = result.top_recommendation
     rec_zone = None
     if top and not result.safety_veto_active:
