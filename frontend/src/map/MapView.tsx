@@ -152,8 +152,8 @@ function getStyleForMode(mode: BasemapMode): any {
   return DARK_STYLE;
 }
 
-const DEFAULT_CENTER: [number, number] = [80.4700, 13.1200]; // Chennai Sector (Kasimedu + PFZ #12A)
-const DEFAULT_ZOOM = 8.8;
+const DEFAULT_CENTER: [number, number] = [80.4600, 13.1500]; // Framing Kasimedu Harbour & PFZ #12A Route
+const DEFAULT_ZOOM = 9.2;
 
 export const MapView: React.FC<MapViewProps> = ({
   isVeto = false,
@@ -169,7 +169,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const mapInstanceRef = useRef<Map | null>(null);
 
   const [mapStatus, setMapStatus] = useState<'loading' | 'ready' | 'error'>('loading');
-  const [activeBasemap, setActiveBasemap] = useState<BasemapMode>('streets');
+  const [activeBasemap, setActiveBasemap] = useState<BasemapMode>('dark');
   const [backendSyncStatus, setBackendSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('syncing');
   const [activeSectorTitle, setActiveSectorTitle] = useState<string>('Chennai Offshore East Sector');
   const [backendMapConfig, setBackendMapConfig] = useState<any>(null);

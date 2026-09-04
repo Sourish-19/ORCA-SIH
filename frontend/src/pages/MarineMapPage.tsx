@@ -7,18 +7,18 @@ interface MarineMapPageProps {
 }
 
 export const MarineMapPage: React.FC<MarineMapPageProps> = ({ response }) => {
-  const center: [number, number] | undefined = response?.top_recommendation
+  const center: [number, number] = (response?.top_recommendation?.center_lon && response?.top_recommendation?.center_lat)
     ? [response.top_recommendation.center_lon, response.top_recommendation.center_lat]
-    : undefined;
+    : [80.4600, 13.1500];
 
   return (
     <div className="h-[calc(100vh-80px)] flex flex-col space-y-2">
       <MarineMap
         isVeto={response?.safety?.veto_triggered}
         center={center}
-        zoom={8.5}
+        zoom={9.2}
         response={response}
-        location={response?.intent?.location_name || response?.top_recommendation?.nearest_landing_centre}
+        location={response?.intent?.location_name || response?.top_recommendation?.nearest_landing_centre || 'Chennai'}
         query={response?.query}
       />
     </div>
