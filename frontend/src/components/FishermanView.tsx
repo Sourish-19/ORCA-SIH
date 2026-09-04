@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Mic, Volume2, ShieldCheck, AlertTriangle, MapPin, Compass, Navigation, Send } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { Mic, Volume2, ShieldCheck, AlertTriangle, Compass, Send } from 'lucide-react';
 import { ORCAResponse } from '../types';
+import { useSpeechRecognition, VoiceLang } from '../hooks/useSpeechRecognition';
 
 interface FishermanViewProps {
   response: ORCAResponse | null;
@@ -8,35 +9,41 @@ interface FishermanViewProps {
   isLoading: boolean;
 }
 
+const LANG_OPTIONS: { code: VoiceLang; label: string }[] = [
+  { code: 'en-IN', label: 'English' },
+  { code: 'ta-IN', label: 'தமிழ்' },
+  { code: 'hi-IN', label: 'हिन्दी' },
+  { code: 'ml-IN', label: 'മലയാളം' },
+  { code: 'te-IN', label: 'తెలుగు' },
+];
+
 export const FishermanView: React.FC<FishermanViewProps> = ({
   response,
   onQuerySubmit,
   isLoading
 }) => {
   const [inputQuery, setInputQuery] = useState('');
-  const [isListening, setIsListening] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const [voiceLang, setVoiceLang] = useState<VoiceLang>('en-IN');
+
+  const handleVoiceResult = useCallback((text: string) => {
+    setInputQuery(text);
+    onQuerySubmit(text);
+  }, [onQuerySubmit]);
+
+  const { isListening, transcript, supported, start, stop } = useSpeechRecognition({
+    lang: voiceLang,
+    onResult: handleVoiceResult,
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputQuery.trim()) {
-      onQuerySubmit(inputQuery.trim());
-    }
-  };
-
-  const handleVoiceSim = () => {
-    setIsListening(true);
-    setInputQuery('Where should I fish tomorrow near Chennai?');
-    setTimeout(() => {
-      setIsListening(false);
-      onQuerySubmit('Where should I fish tomorrow near Chennai?');
-    }, 1500);
+    if (inputQuery.trim()) onQuerySubmit(inputQuery.trim());
   };
 
   const handlePlayAudio = () => {
     if (!response?.audio_narrative_text) return;
     setIsPlayingAudio(true);
-    // Use Web Speech API if supported
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(response.audio_narrative_text);
@@ -55,15 +62,14 @@ export const FishermanView: React.FC<FishermanViewProps> = ({
 
   return (
     <div className="space-y-6">
-      
-      {/* Search & Voice Input Box */}
+
       <div className="bg-slate-900 border border-cyan-800 p-4 rounded-2xl shadow-xl">
         <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
-          
+
           <div className="relative flex-1">
             <input
               type="text"
-              value={inputQuery}
+              value={isListening ? transcript || inputQuery : inputQuery}
               onChange={(e) => setInputQuery(e.target.value)}
               placeholder="Ask in your language e.g. 'Where should I fish tomorrow near Chennai?'..."
               disabled={isLoading}
@@ -72,22 +78,32 @@ export const FishermanView: React.FC<FishermanViewProps> = ({
             <Compass className="w-5 h-5 text-cyan-500 absolute left-3.5 top-3.5" />
           </div>
 
-          {/* Voice Input Button */}
+          <select
+            value={voiceLang}
+            onChange={(e) => setVoiceLang(e.target.value as VoiceLang)}
+            disabled={isListening}
+            className="bg-slate-950 border border-slate-700 text-slate-100 rounded-xl px-3 py-3.5 text-sm outline-none focus:ring-2 focus:ring-cyan-500"
+          >
+            {LANG_OPTIONS.map((l) => (
+              <option key={l.code} value={l.code}>{l.label}</option>
+            ))}
+          </select>
+
           <button
             type="button"
-            onClick={handleVoiceSim}
-            disabled={isLoading || isListening}
+            onClick={isListening ? stop : start}
+            disabled={isLoading || !supported}
+            title={!supported ? 'Speech recognition not supported in this browser' : undefined}
             className={`px-5 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition ${
               isListening
                 ? 'bg-red-600 text-white animate-pulse'
                 : 'bg-gradient-to-r from-teal-500 to-cyan-600 hover:from-teal-600 hover:to-cyan-700 text-white shadow-lg shadow-cyan-600/30'
-            }`}
+            } disabled:opacity-40`}
           >
             <Mic className="w-5 h-5" />
-            {isListening ? 'Listening...' : 'Voice Query'}
+            {isListening ? 'Listening...' : supported ? 'Voice Query' : 'Voice N/A'}
           </button>
 
-          {/* Submit Button */}
           <button
             type="submit"
             disabled={isLoading || !inputQuery.trim()}
@@ -99,7 +115,6 @@ export const FishermanView: React.FC<FishermanViewProps> = ({
         </form>
       </div>
 
-      {/* Primary Status Banner */}
       {response && (
         <div
           className={`p-6 rounded-2xl border-2 shadow-2xl transition flex flex-col md:flex-row items-start md:items-center justify-between gap-4 ${
@@ -136,7 +151,6 @@ export const FishermanView: React.FC<FishermanViewProps> = ({
             </div>
           </div>
 
-          {/* Audio Player Button */}
           <button
             onClick={handlePlayAudio}
             disabled={isPlayingAudio}
@@ -148,7 +162,6 @@ export const FishermanView: React.FC<FishermanViewProps> = ({
         </div>
       )}
 
-      {/* Main Fisherman Zone Action Card */}
       {rec && !isVeto && (
         <div className="bg-slate-900 border border-cyan-800 rounded-2xl p-6 shadow-2xl space-y-4">
           <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800">
@@ -166,7 +179,6 @@ export const FishermanView: React.FC<FishermanViewProps> = ({
             </div>
           </div>
 
-          {/* Core Metrics Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div className="bg-slate-950 p-3.5 rounded-xl border border-slate-800 text-center">
               <p className="text-xs text-slate-400 font-semibold">Distance</p>
@@ -188,7 +200,6 @@ export const FishermanView: React.FC<FishermanViewProps> = ({
             </div>
           </div>
 
-          {/* Simple Grounded Guidance */}
           <div className="bg-slate-950/60 p-4 rounded-xl border border-slate-800 text-xs text-slate-300 leading-relaxed">
             <p className="font-semibold text-cyan-400 mb-1">Fisherman Action Summary:</p>
             <p>{response.synthesized_answer.replace(/[*#]/g, '')}</p>
