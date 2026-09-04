@@ -45,7 +45,7 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
   const latestSpokenTextRef = useRef<string>('');
   const autoPlayRef = useRef<boolean>(false);
 
-  const isVeto = response?.safety?.veto_triggered || (dayToggle === 'today' && response?.intent?.location_name === 'Visakhapatnam');
+  const isVeto = Boolean(response?.safety?.veto_triggered);
   const rec = response?.top_recommendation;
 
   // Initialize Speech Recognition if supported by browser
@@ -73,7 +73,7 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
           setActiveSpokenQuery(spoken);
           onQuerySubmit(spoken);
         } else {
-          const fallback = lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?';
+          const fallback = lang === 'ta' ? 'நாளை எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow?';
           setActiveSpokenQuery(fallback);
           onQuerySubmit(fallback);
         }
@@ -83,7 +83,7 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
         console.warn('Speech recognition error:', err);
         setIsListening(false);
         autoPlayRef.current = true;
-        const fallback = lang === 'ta' ? 'நாளை சென்னை அருகில் எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow near Chennai?';
+        const fallback = lang === 'ta' ? 'நாளை எங்கு மீன் பிடிக்கலாம்?' : 'Where should I fish tomorrow?';
         setActiveSpokenQuery(fallback);
         onQuerySubmit(fallback);
       };
@@ -92,13 +92,37 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
     }
   }, [lang, onQuerySubmit]);
 
+  // Helper to detect Tamil characters
+  const isTamilText = (text?: string): boolean => {
+    if (!text) return false;
+    return /[\u0B80-\u0BFF]/.test(text);
+  };
+
+  // Pre-load available synthesis voices
+  useEffect(() => {
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.getVoices();
+      const onVoices = () => {
+        window.speechSynthesis.getVoices();
+      };
+      window.speechSynthesis.onvoiceschanged = onVoices;
+      return () => {
+        window.speechSynthesis.onvoiceschanged = null;
+      };
+    }
+  }, []);
+
   // Auto-play audio answer back out loud as soon as backend response arrives!
   useEffect(() => {
-    if (response && autoPlayRef.current) {
-      autoPlayRef.current = false;
-      setTimeout(() => {
-        speakAudioAnswer(response);
-      }, 300);
+    if (response) {
+      const responseLang = response.intent?.detected_language === 'ta' || isTamilText(response.audio_narrative_text) ? 'ta' : 'en';
+      setLang(responseLang);
+      if (autoPlayRef.current) {
+        autoPlayRef.current = false;
+        setTimeout(() => {
+          speakAudioAnswer(response);
+        }, 300);
+      }
     }
   }, [response]);
 
@@ -111,18 +135,20 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
     setIsPlayingAudio(true);
     setAudioProgress(0);
 
+    const isTamil = res?.intent?.detected_language === 'ta' || isTamilText(res?.audio_narrative_text) || lang === 'ta';
+
     let textToSpeak = res?.audio_narrative_text;
     if (!textToSpeak) {
       if (res?.safety?.veto_triggered) {
-        textToSpeak = lang === 'ta'
-          ? `எச்சரிக்கை! சென்னை கடற்பகுதியில் புயல் எச்சரிக்கை உள்ளதால் கடலுக்கு செல்ல வேண்டாம்.`
-          : `Warning! Cyclone hazard is active. Fishermen are advised not to venture to sea.`;
+        textToSpeak = isTamil
+          ? `எச்சரிக்கை! கடல் பகுதியில் தீவிர வானிலை எச்சரிக்கை உள்ளதால் கடலுக்கு செல்ல வேண்டாம்.`
+          : `Warning! Severe marine hazard warning is active. Fishermen are advised not to venture to sea.`;
       } else {
-        const locName = res?.top_recommendation?.sector_name || (lang === 'ta' ? 'சென்னை கிழக்கு கடல்' : 'Chennai Offshore East');
-        const distKm = res?.top_recommendation?.distance_km || 38;
-        textToSpeak = lang === 'ta'
-          ? `வணக்கம். சென்னை கடற்பகுதியில் நாளை மீன்பிடிக்க வானிலை மிகவும் பாதுகாப்பானது. பரிந்துரைக்கப்பட்ட இடம் ${locName}, தூரம் ${distKm} கிலோமீட்டர்.`
-          : `Welcome. Sea conditions off Chennai are safe for fishing tomorrow. Primary recommended zone is ${locName}, distance ${distKm} kilometers.`;
+        const locName = res?.top_recommendation?.sector_name || res?.intent?.location_name || (isTamil ? 'கடல் பகுதி' : 'coastal waters');
+        const distKm = res?.top_recommendation?.distance_km || 25;
+        textToSpeak = isTamil
+          ? `வணக்கம். மீன்பிடிக்க வானிலை பாதுகாப்பானது. பரிந்துரைக்கப்பட்ட இடம் ${locName}, தூரம் ${distKm} கிலோமீட்டர்.`
+          : `Welcome. Sea conditions are safe for fishing. Primary recommended zone is ${locName}, distance ${distKm} kilometers.`;
       }
     }
 
@@ -130,7 +156,37 @@ export const FishermanPage: React.FC<FishermanPageProps> = ({ response, onQueryS
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(textToSpeak);
       utterance.rate = 0.95;
-      utterance.lang = lang === 'ta' ? 'ta-IN' : 'en-US';
+      utterance.lang = isTamil ? 'ta-IN' : 'en-IN';
+
+      // Pick matching voice from available browser synthesis voices
+      try {
+        const voices = window.speechSynthesis.getVoices() || [];
+        if (isTamil) {
+          const taVoice = voices.find((v) => {
+            const langLower = (v.lang || '').toLowerCase().replace('_', '-');
+            const nameLower = (v.name || '').toLowerCase();
+            return (
+              langLower.startsWith('ta') ||
+              langLower.includes('ta-in') ||
+              nameLower.includes('tamil') ||
+              nameLower.includes('valluvar') ||
+              nameLower.includes('kani')
+            );
+          });
+          if (taVoice) {
+            utterance.voice = taVoice;
+          }
+        } else {
+          const enVoice =
+            voices.find((v) => (v.lang || '').toLowerCase().replace('_', '-').startsWith('en-in')) ||
+            voices.find((v) => (v.lang || '').toLowerCase().replace('_', '-').startsWith('en'));
+          if (enVoice) {
+            utterance.voice = enVoice;
+          }
+        }
+      } catch (err) {
+        console.warn('Error selecting TTS voice:', err);
+      }
 
       let interval: any = null;
       utterance.onstart = () => {

@@ -88,12 +88,52 @@ COASTAL_LOCATIONS = [
 def extract_location(text: str, context_location: Optional[str] = None) -> Tuple[str, bool]:
     """
     Returns (location_name, was_explicitly_found_in_query).
+    Generic location resolution:
+    1. Checks known coastal landmarks/cities pattern list (English and Tamil).
+    2. Uses generic spatial preposition matching (near/in/at/off/around/for <Place>).
+    3. Falls back to context_location if not explicitly present.
+    4. Falls back to default ("Chennai") only if no context and no explicit location.
     """
     lowered = text.lower()
     for pattern, canonical in COASTAL_LOCATIONS:
         if pattern.lower() in lowered:
             return canonical, True
-    
+
+    # Generic preposition / location phrase extractor
+    # e.g., "near Chennai Harbour", "in Malpe", "around Digha", "off Porbandar", "at Pondicherry", "near Kavaratti"
+    prep_match = re.search(
+        r"\b(?:near|in|at|off|around|for|from|to|towards|close to)\s+([A-Za-z][A-Za-z0-9\s'-]+?)(?:\s+(?:harbour|harbor|port|coast|beach|waters|sea|bay|gulf|jetty|landing centre))?(?:[?,.!;]|\s+tomorrow|\s+today|\s+now|\s+tonight|$)",
+        text,
+        re.IGNORECASE
+    )
+    if prep_match:
+        extracted = prep_match.group(1).strip()
+        noise = {
+            "the", "a", "an", "my", "our", "this", "that", "me", "us", "fish", "fishing",
+            "boat", "catch", "waves", "wind", "weather", "where", "what", "how", "can",
+            "safe", "safety", "zone", "here", "there"
+        }
+        words = [w for w in extracted.split() if w.lower() not in noise]
+        if words:
+            candidate = " ".join(words).title()
+            if len(candidate) >= 3:
+                # Check if candidate matches any known location pattern
+                for pattern, canonical in COASTAL_LOCATIONS:
+                    if pattern.lower() in candidate.lower():
+                        return canonical, True
+                return candidate, True
+
+    # Tamil generic preposition / marker matching
+    # e.g., "சென்னை அருகில்", "கொச்சி பக்கத்தில்", "கடலில்", "பகுதியில்", "துறைமுகம்"
+    ta_match = re.search(r"([\u0B80-\u0BFF]+)\s+(?:அருகில்|பக்கத்தில்|கடலில்|பகுதியில்|துறைமுகம்|கடற்கரை)", text)
+    if ta_match:
+        candidate_ta = ta_match.group(1).strip()
+        if len(candidate_ta) >= 2:
+            for pattern, canonical in COASTAL_LOCATIONS:
+                if pattern in candidate_ta:
+                    return canonical, True
+            return candidate_ta, True
+
     if context_location:
         return context_location, False
     return "Chennai", False
@@ -383,7 +423,7 @@ def _semantic_intent_understanding(
     if any(w in lowered for w in [
         "wind", "winds", "wind speed", "how fast is the wind", "wind direction", "wind knots",
         "what about the wind", "how is the wind", "is it windy", "gale wind", "squall", "breeze",
-        "காற்றின் வேகம்", "காற்று எப்படி", "காற்று திசை", "காற்றின் அளவு", "காற்று"
+        "காற்றின் வேகம்", "காற்றின்", "காற்று எப்படி", "காற்று திசை", "காற்றின் அளவு", "காற்று"
     ]):
         return StructuredIntent(
             raw_query=clean_query,
@@ -471,14 +511,53 @@ def _semantic_intent_understanding(
         )
 
     # -------------------------------------------------------------
-    # 10. SAFETY INQUIRY
+    # 10. EXPLICIT FISHING RECOMMENDATION INQUIRY
+    # (When user asks WHERE to fish, where to catch fish, or for a fishing zone recommendation)
     # -------------------------------------------------------------
-    if any(w in lowered for w in [
-        "is it safe", "can i go", "safe to go", "safe to fish", "can i take my boat",
-        "safety status", "should i venture", "is it dangerous", "safety check",
-        "is it safe tomorrow", "safe tomorrow", "safety", "is it clear to sail",
-        "பாதுகாப்பானதா", "கடலுக்கு செல்லலாமா", "படகை எடுக்கலாமா", "பாதுகாப்பு நிலை", "நாளை பாதுகாப்பானதா"
-    ]):
+    is_explicit_fishing_request = (
+        any(w in lowered for w in [
+            "where should i fish", "where to fish", "where can i fish", "where can i catch",
+            "where should we fish", "where can we fish", "where to go fishing", "best place to fish",
+            "recommend fishing", "recommend a zone", "suggest a spot", "suggest a location",
+            "give me a recommendation", "where can we catch", "where to go for fishing", "where can i go fishing",
+            "where can i go to catch", "where do i fish", "where do we fish", "where is good to fish",
+            "where is it good to fish", "which zone should i fish", "which area should i fish",
+            "which spot to fish", "which zone to fish", "which area to fish", "which location to fish",
+            "best fishing spots", "good fishing spots", "recommend a fishing spot", "where are the fish",
+            "எங்கு மீன் பிடிக்கலாம்", "மீன்பிடிக்க எங்கு", "மீன் பிடிக்க எங்கு செல்லலாம்", "எங்கு மீன்பிடிக்கலாம்",
+            "எங்கு மீன் கிடைக்கும்", "எங்கு மீன் பிடிக்க செல்லலாம்", "எந்த இடத்தில் மீன் பிடிக்கலாம்"
+        ])
+        or ("where" in lowered and ("fish" in lowered or "catch" in lowered or "fishing" in lowered or "trawl" in lowered))
+        or (("which place" in lowered or "which area" in lowered or "which spot" in lowered or "which zone" in lowered or "which location" in lowered or "best spot" in lowered or "good spot" in lowered) and ("fish" in lowered or "catch" in lowered or "fishing" in lowered))
+        or (("recommend" in lowered or "suggest" in lowered or "find" in lowered or "show" in lowered) and ("fishing" in lowered or "fishing zone" in lowered or "fishing spot" in lowered or "pfz" in lowered))
+        or (any(w in lowered for w in ["எங்கு", "எங்கே", "எந்த இடம்", "எந்த பகுதி"]) and any(w in lowered for w in ["மீன்", "பிடிக்க", "செல்லலாம்"]))
+    )
+    if is_explicit_fishing_request:
+        return StructuredIntent(
+            raw_query=clean_query,
+            detected_language=detected_lang,
+            primary_intent="FISHING_RECOMMENDATION",
+            requested_information=["recommended_zone", "coordinates", "suitability_score", "bearing", "distance"],
+            data_available_in_orca=True,
+            location_name=location,
+            target_date_str=date_str,
+            target_datetime=target_dt,
+            activity="FISHING",
+            radius_km=50.0,
+            confidence=0.95,
+        )
+
+    # -------------------------------------------------------------
+    # 11. SAFETY INQUIRY
+    # -------------------------------------------------------------
+    safety_indicators = [
+        "is it safe", "safe to go", "safe to fish", "can i take my boat", "can i venture", "should i venture",
+        "safety status", "is it dangerous", "safety check", "is it safe tomorrow", "safe tomorrow",
+        "is it clear to sail", "is sea safe", "is water safe", "is fishing safe", "clear to sail",
+        "can i go to sea", "can we go to sea", "can i go out to sea", "can we go out to sea",
+        "பாதுகாப்பானதா", "பாதுகாப்பாக", "பாதுகாப்பு", "பாதுகாப்ப", "கடலுக்கு செல்லலாமா", "படகை எடுக்கலாமா", "பாதுகாப்பு நிலை", "நாளை பாதுகாப்பானதா"
+    ]
+    if any(w in lowered for w in safety_indicators) or (re.search(r"\bsafety\b", lowered) and not is_explicit_fishing_request):
         return StructuredIntent(
             raw_query=clean_query,
             detected_language=detected_lang,
@@ -494,7 +573,7 @@ def _semantic_intent_understanding(
         )
 
     # -------------------------------------------------------------
-    # 11. HAZARD / CYCLONE INQUIRY
+    # 12. HAZARD / CYCLONE INQUIRY
     # -------------------------------------------------------------
     if any(w in lowered for w in [
         "cyclone", "storm", "warning", "gale", "advisory", "hazard", "red alert",
@@ -515,7 +594,7 @@ def _semantic_intent_understanding(
         )
 
     # -------------------------------------------------------------
-    # 12. SPECIES INQUIRY
+    # 13. SPECIES INQUIRY
     # -------------------------------------------------------------
     if any(w in lowered for w in [
         "fish type", "fish species", "types of fish", "which fish", "what fish", "target fish",
@@ -538,7 +617,7 @@ def _semantic_intent_understanding(
         )
 
     # -------------------------------------------------------------
-    # 13. VESSEL / FLEET INQUIRY
+    # 14. VESSEL / FLEET INQUIRY
     # -------------------------------------------------------------
     if any(w in lowered for w in [
         "how many vessels", "vessel traffic", "fleet count", "nearby boats", "ais fleet",
@@ -559,7 +638,7 @@ def _semantic_intent_understanding(
         )
 
     # -------------------------------------------------------------
-    # 14. PFZ SPECIFIC INQUIRY
+    # 15. PFZ SPECIFIC INQUIRY
     # -------------------------------------------------------------
     if any(w in lowered for w in [
         "pfz", "potential fishing zone", "pfz bulletin", "incois advisory",
@@ -580,7 +659,7 @@ def _semantic_intent_understanding(
         )
 
     # -------------------------------------------------------------
-    # 15. GENERAL WEATHER INQUIRY
+    # 16. GENERAL WEATHER INQUIRY
     # -------------------------------------------------------------
     if any(w in lowered for w in [
         "weather", "forecast", "climate", "conditions tomorrow", "sea weather",
@@ -601,7 +680,7 @@ def _semantic_intent_understanding(
         )
 
     # -------------------------------------------------------------
-    # 16. SEASONAL FISHING GUIDANCE INQUIRY (Seasons, Best Months, Breeding Ban)
+    # 17. SEASONAL FISHING GUIDANCE INQUIRY (Seasons, Best Months, Breeding Ban)
     # -------------------------------------------------------------
     seasonal_indicators = [
         "best season", "good season", "which month", "fishing season", "breeding season",
@@ -625,7 +704,7 @@ def _semantic_intent_understanding(
         )
 
     # -------------------------------------------------------------
-    # 16b. GENERAL MARINE KNOWLEDGE (Nets, Biology, Tides, Oceanography)
+    # 17b. GENERAL MARINE KNOWLEDGE (Nets, Biology, Tides, Oceanography)
     # -------------------------------------------------------------
     if any(w in lowered for w in [
         "moon phase", "lunar cycle", "high tide vs low tide", "type of net", "mesh size",
@@ -646,35 +725,6 @@ def _semantic_intent_understanding(
             activity="OTHER",
             radius_km=50.0,
             confidence=0.90,
-        )
-
-    # -------------------------------------------------------------
-    # 17. EXPLICIT FISHING RECOMMENDATION INQUIRY
-    # (ONLY when user explicitly asks where to fish or for a fishing zone recommendation)
-    # -------------------------------------------------------------
-    is_explicit_fishing_request = (
-        any(w in lowered for w in [
-            "where should i fish", "where to fish", "where can i fish", "where can i catch",
-            "where should we fish", "where can we fish", "where to go fishing", "best place to fish",
-            "recommend fishing", "recommend a zone", "suggest a spot", "suggest a location",
-            "give me a recommendation", "where can we catch",
-            "எங்கு மீன் பிடிக்கலாம்", "மீன்பிடிக்க எங்கு", "மீன் பிடிக்க எங்கு செல்லலாம்", "எங்கு மீன்பிடிக்கலாம்"
-        ])
-        or ("where" in lowered and ("fish" in lowered or "catch" in lowered))
-    )
-    if is_explicit_fishing_request:
-        return StructuredIntent(
-            raw_query=clean_query,
-            detected_language=detected_lang,
-            primary_intent="FISHING_RECOMMENDATION",
-            requested_information=["recommended_zone", "coordinates", "suitability_score", "bearing", "distance"],
-            data_available_in_orca=True,
-            location_name=location,
-            target_date_str=date_str,
-            target_datetime=target_dt,
-            activity="FISHING",
-            radius_km=50.0,
-            confidence=0.95,
         )
 
     # -------------------------------------------------------------
@@ -745,7 +795,7 @@ def _is_elliptical_followup(clean_query: str) -> Tuple[bool, Optional[str]]:
         "where to fish", "where should i fish", "where can i fish", "where to catch", "recommend fishing", "suggest a spot", "suggest a location",
         "best season", "breeding season", "ban period", "which month", "fishing season", "moon phase",
         # Tamil explicit keywords
-        "காற்று", "அலை", "வெப்பநிலை", "குளோரோபில்", "பாதுகாப்", "புயல்", "எச்சரிக்கை", "காரணம்",
+        "காற்", "காற்று", "காற்றின்", "வேகம்", "அலை", "அலைகள்", "வெப்பநிலை", "குளோரோபில்", "பாதுகாப்", "புயல்", "எச்சரிக்கை", "காரணம்",
         "தூரம்", "திசை", "ஆழம்", "சிறந்த", "மீன் வகைகள்", "படகு", "வானிலை", "உப்பு", "சோடியம்",
         "ஆக்சிஜன்", "எங்கு மீன்", "பருவம்", "தடை காலம்"
     ]
@@ -759,15 +809,15 @@ def _is_elliptical_followup(clean_query: str) -> Tuple[bool, Optional[str]]:
     ]
     is_starter_match = any(lowered.startswith(st + " ") or lowered.startswith(st + "?") for st in followup_starters)
 
-    loc, _ = extract_location(clean_query, None)
-    if loc and loc != "Unknown":
+    loc, was_explicit = extract_location(clean_query, None)
+    if was_explicit and loc and loc != "Unknown":
         if is_starter_match or len(clean_query.split()) <= 4:
             return True, loc
 
     # Tamil phrasing
     if any(k in lowered for k in ["எப்படி", "பற்றி"]):
-        loc_ta, _ = extract_location(clean_query, None)
-        if loc_ta and loc_ta != "Unknown":
+        loc_ta, was_exp_ta = extract_location(clean_query, None)
+        if was_exp_ta and loc_ta and loc_ta != "Unknown":
             return True, loc_ta
 
     return False, None

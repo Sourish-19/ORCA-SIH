@@ -21,7 +21,31 @@ export const TamilVoicePage: React.FC<TamilVoicePageProps> = ({ response, onQuer
       window.speechSynthesis.cancel();
       const text = response?.audio_narrative_text || 'நாளை சென்னை கிழக்கு கடல் பகுதியில் மீன்பிடிக்க பரிந்துரைக்கப்படுகிறது. வானிலை பாதுகாப்பானது.';
       const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'ta-IN';
+      utterance.rate = 0.95;
+
+      try {
+        const voices = window.speechSynthesis.getVoices() || [];
+        const taVoice = voices.find((v) => {
+          const langLower = (v.lang || '').toLowerCase().replace('_', '-');
+          const nameLower = (v.name || '').toLowerCase();
+          return (
+            langLower.startsWith('ta') ||
+            langLower.includes('ta-in') ||
+            nameLower.includes('tamil') ||
+            nameLower.includes('valluvar') ||
+            nameLower.includes('kani')
+          );
+        });
+        if (taVoice) {
+          utterance.voice = taVoice;
+        }
+      } catch (err) {
+        console.warn('Error selecting Tamil TTS voice:', err);
+      }
+
       utterance.onend = () => setIsPlaying(false);
+      utterance.onerror = () => setIsPlaying(false);
       window.speechSynthesis.speak(utterance);
     }
   };

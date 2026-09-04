@@ -39,8 +39,41 @@ export const FishermanView: React.FC<FishermanViewProps> = ({
     // Use Web Speech API if supported
     if ('speechSynthesis' in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(response.audio_narrative_text);
+      const text = response.audio_narrative_text;
+      const isTamil = response.intent?.detected_language === 'ta' || /[\u0B80-\u0BFF]/.test(text);
+      const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.95;
+      utterance.lang = isTamil ? 'ta-IN' : 'en-IN';
+
+      try {
+        const voices = window.speechSynthesis.getVoices() || [];
+        if (isTamil) {
+          const taVoice = voices.find((v) => {
+            const langLower = (v.lang || '').toLowerCase().replace('_', '-');
+            const nameLower = (v.name || '').toLowerCase();
+            return (
+              langLower.startsWith('ta') ||
+              langLower.includes('ta-in') ||
+              nameLower.includes('tamil') ||
+              nameLower.includes('valluvar') ||
+              nameLower.includes('kani')
+            );
+          });
+          if (taVoice) {
+            utterance.voice = taVoice;
+          }
+        } else {
+          const enVoice =
+            voices.find((v) => (v.lang || '').toLowerCase().replace('_', '-').startsWith('en-in')) ||
+            voices.find((v) => (v.lang || '').toLowerCase().replace('_', '-').startsWith('en'));
+          if (enVoice) {
+            utterance.voice = enVoice;
+          }
+        }
+      } catch (err) {
+        console.warn('Error selecting TTS voice:', err);
+      }
+
       utterance.onend = () => setIsPlayingAudio(false);
       utterance.onerror = () => setIsPlayingAudio(false);
       window.speechSynthesis.speak(utterance);

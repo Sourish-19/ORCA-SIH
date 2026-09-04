@@ -121,6 +121,13 @@ def validate_llm_response(
     ctx_dict = context.to_dict()
     intent = context.primary_intent
 
+    # 0. Language Match Check
+    has_tamil = any("\u0B80" <= c <= "\u0BFF" for c in combined_text)
+    if context.detected_language == "ta" and not has_tamil:
+        return False, "failed_language_mismatch:expected_tamil"
+    elif context.detected_language == "en" and has_tamil:
+        return False, "failed_language_mismatch:expected_english"
+
     # 1. Safety Veto Check (Crucial: NEVER allow claiming conditions are safe during a veto)
     if context.safety.veto_triggered or context.safety.status == "NO_GO":
         for phrase in _NO_GO_CONTRADICTION_PHRASES:
@@ -177,9 +184,9 @@ def _system_prompt(
     unavailable_param: Optional[str] = None
 ) -> str:
     lang_line = (
-        "Write BOTH 'headline', 'narrative', and 'answer' in plain, conversational Tamil (தமிழ்)."
+        "STRICT LANGUAGE REQUIREMENT: You MUST write ALL text ('headline', 'narrative', and 'answer') purely in conversational Tamil (தமிழ் script). DO NOT write in English."
         if language == "ta"
-        else "Write BOTH 'headline', 'narrative', and 'answer' in plain, clear, conversational English."
+        else "STRICT LANGUAGE REQUIREMENT: Write BOTH 'headline', 'narrative', and 'answer' in plain, clear, conversational English."
     )
 
     stage_instruction = ""
@@ -424,6 +431,60 @@ def _parse_llm_json(content: str) -> Tuple[Optional[str], Optional[str], Optiona
 # DYNAMIC QUERY-AWARE GROUNDED REASONING GENERATOR
 # =====================================================================
 
+TAMIL_LOCATIONS_MAP = {
+    "chennai": "சென்னை",
+    "visakhapatnam": "விசாகப்பட்டினம்",
+    "vizag": "விசாகப்பட்டினம்",
+    "kochi": "கொச்சி",
+    "cochin": "கொச்சி",
+    "mangalore": "மங்களூர்",
+    "ennore": "எண்ணூர்",
+    "ennorekuppam": "எண்ணூர்குப்பம்",
+    "kasimedu": "காசிமேடு",
+    "royapuram": "ராயபுரம்",
+    "pulicat": "பழவேற்காடு",
+    "kovalam": "கோவளம்",
+    "mahabalipuram": "மகாபலிபுரம்",
+    "cuddalore": "கடலூர்",
+    "puducherry": "புதுச்சேரி",
+    "pondicherry": "புதுச்சேரி",
+    "nagapattinam": "நாகப்பட்டினம்",
+    "karaikal": "காரைக்கால்",
+    "rameswaram": "ராமேஸ்வரம்",
+    "tuticorin": "தூத்துக்குடி",
+    "kanyakumari": "கன்னியாகுமரி",
+    "mumbai": "மும்பை",
+    "goa": "கோவா",
+    "calicut": "கோழிக்கோடு",
+    "puri": "புரி",
+    "paradip": "பாராதீப்",
+    "kolkata": "கொல்கத்தா",
+}
+
+
+def _to_ta_location(loc: str) -> str:
+    return TAMIL_LOCATIONS_MAP.get(loc.lower(), loc)
+
+
+def _to_ta_sea_condition(cond: Optional[str]) -> str:
+    if not cond:
+        return "மிதமான கடல் நிலை"
+    low = cond.lower()
+    if "rough in gust" in low or "gust" in low:
+        return "பொதுவாக மிதமானது, பலத்த காற்றில் கொந்தளிப்பாக மாறக்கூடும்"
+    elif "very rough" in low or "high" in low:
+        return "மிகவும் கொந்தளிப்பானது"
+    elif "rough" in low or "choppy" in low:
+        return "கொந்தளிப்பானது"
+    elif "moderate" in low:
+        return "மிதமானது"
+    elif "slight" in low:
+        return "லேசானது"
+    elif "calm" in low or "smooth" in low:
+        return "அமைதியானது"
+    return "மிதமான கடல் நிலை"
+
+
 def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, str]:
     """
     Dynamically generates grounded, natural 2-5 sentence responses specifically for
@@ -444,14 +505,17 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
         if context.location.latitude < 8.2 and 77.0 <= context.location.longitude <= 78.0:
             basin_name = "Indian Ocean"
 
+    ta_loc = _to_ta_location(loc_name)
+    ta_basin = "வங்காள விரிகுடா" if basin_name == "Bay of Bengal" else ("அரபிக்கடல்" if basin_name == "Arabian Sea" else "இந்தியப் பெருங்கடல்")
+
     # -------------------------------------------------------------
     # 0. CLARIFICATION INQUIRY (Ambiguous follow-up without prior context)
     # -------------------------------------------------------------
     if intent == "CLARIFICATION_INQUIRY":
         if is_ta:
-            headline = f"{loc_name} பற்றிய விளக்கம் தேவை"
+            headline = f"{ta_loc} பற்றிய விளக்கம் தேவை"
             narrative = (
-                f"{loc_name} கடற்பகுதிக்கு என்ன தகவல் தேவை என்பதை தயவுசெய்து குறிப்பிடவும். "
+                f"{ta_loc} கடற்பகுதிக்கு என்ன தகவல் தேவை என்பதை தயவுசெய்து குறிப்பிடவும். "
                 f"மீன்பிடி மண்டல பரிந்துரைகள், அலை மற்றும் காற்றின் நிலை, கடல் வானிலை, பாதுகாப்பு எச்சரிக்கைகள் அல்லது மீன்பிடி பருவம் ஆகியவற்றில் நான் உதவ முடியும்."
             )
         else:
@@ -488,9 +552,9 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
         salinity_range = "34 to 36.5 PSU" if basin_name == "Arabian Sea" else "30 to 34 PSU"
         if "sodium" in param_low:
             if is_ta:
-                headline = f"{loc_name} கடற்பகுதி சோடியம் அளவு தகவல்"
+                headline = f"{ta_loc} கடற்பகுதி சோடியம் அளவு தகவல்"
                 narrative = (
-                    f"ORCA-வின் தற்போதைய தரவுத்தளத்தில் {loc_name} பகுதிக்கான சோடியம் வேதியியல் அளவீடுகள் இல்லை. "
+                    f"ORCA-வின் தற்போதைய தரவுத்தளத்தில் {ta_loc} பகுதிக்கான சோடியம் வேதியியல் அளவீடுகள் இல்லை. "
                     f"பொதுவான கடல் அறிவியல் சூழலில், கடல்நீரின் உப்புத்தன்மை (Salinity) என்பது மொத்த கரைந்துள்ள உப்புகளின் அளவீடாகும் மற்றும் சோடியம் அயனிகள் அதில் ஒரு முக்கிய பங்கு வகிக்கின்றன. "
                     f"குறிப்பிட்ட பகுதியின் துல்லியமான சோடியம் செறிவை அறிய நேரடி வேதியியல் ஆய்வகப் பரிசோதனை அவசியமாகும்."
                 )
@@ -503,10 +567,10 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
                 )
         elif "salinity" in param_low or "salt" in param_low:
             if is_ta:
-                headline = f"{loc_name} கடற்பகுதி உப்புத்தன்மை (Salinity) தகவல்"
+                headline = f"{ta_loc} கடற்பகுதி உப்புத்தன்மை (Salinity) தகவல்"
                 narrative = (
-                    f"ORCA-வின் தற்போதைய தரவுத்தளத்தில் {loc_name} பகுதிக்கான உப்புத்தன்மை அளவீடுகள் இல்லை. "
-                    f"பொதுவான கடல்சார் அறிவியல் சூழலில், {basin_name} கடற்பகுதியில் {loc_name} அருகில் கடல் மேற்பரப்பு உப்புத்தன்மை பொதுவாக {salinity_range} (Practical Salinity Units) வரையிலும் இருக்கும். "
+                    f"ORCA-வின் தற்போதைய தரவுத்தளத்தில் {ta_loc} பகுதிக்கான உப்புத்தன்மை அளவீடுகள் இல்லை. "
+                    f"பொதுவான கடல்சார் அறிவியல் சூழலில், {ta_basin} கடற்பகுதியில் {ta_loc} அருகில் கடல் மேற்பரப்பு உப்புத்தன்மை பொதுவாக {salinity_range} (Practical Salinity Units) வரையிலும் இருக்கும். "
                     f"பருவமழை, ஆற்று நீர் வரத்து மற்றும் ஆவியாதல் ஆகியவற்றைப் பொறுத்து இது மாறுபடும்."
                 )
             else:
@@ -518,10 +582,10 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
                 )
         elif "oxygen" in param_low:
             if is_ta:
-                headline = f"{loc_name} நீரில் கரைந்துள்ள ஆக்சிஜன் அளவு"
+                headline = f"{ta_loc} நீரில் கரைந்துள்ள ஆக்சிஜன் அளவு"
                 narrative = (
                     f"ORCA-வின் தற்போதைய தரவுத்தளத்தில் கரைந்துள்ள ஆக்சிஜன் (DO) அளவீடுகள் இல்லை. "
-                    f"பொதுவான கடல் அறிவியல் தகவலாக, {basin_name} கடலோர நீரில் இது பொதுவாக 4.5 முதல் 6.5 mg/L வரை இருக்கும்."
+                    f"பொதுவான கடல் அறிவியல் தகவலாக, {ta_basin} கடலோர நீரில் இது பொதுவாக 4.5 முதல் 6.5 mg/L வரை இருக்கும்."
                 )
             else:
                 headline = f"Dissolved Oxygen Context for {loc_name}"
@@ -531,10 +595,10 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
                 )
         elif "ph" in param_low:
             if is_ta:
-                headline = f"{loc_name} கடல் நீர் pH அளவு"
+                headline = f"{ta_loc} கடல் நீர் pH அளவு"
                 narrative = (
                     f"ORCA-வின் தற்போதைய தரவுத்தளத்தில் pH நேரடி அளவீடுகள் இல்லை. "
-                    f"பொதுவான கடல் அறிவியல் சூழலில், {basin_name} கடலோர கடல் நீர் pH அளவு பொதுவாக 7.8 முதல் 8.2 வரை இருக்கும்."
+                    f"பொதுவான கடல் அறிவியல் சூழலில், {ta_basin} கடலோர கடல் நீர் pH அளவு பொதுவாக 7.8 முதல் 8.2 வரை இருக்கும்."
                 )
             else:
                 headline = f"Water pH Context for {loc_name}"
@@ -544,9 +608,9 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
                 )
         else:
             if is_ta:
-                headline = f"{loc_name} {unavail_param} தரவு இல்லை"
+                headline = f"{ta_loc} {unavail_param} தரவு இல்லை"
                 narrative = (
-                    f"ORCA-வின் தற்போதைய தரவுத்தளத்தில் {loc_name} பகுதிக்கான {unavail_param} அளவீடுகள் இல்லை. "
+                    f"ORCA-வின் தற்போதைய தரவுத்தளத்தில் {ta_loc} பகுதிக்கான {unavail_param} அளவீடுகள் இல்லை. "
                     f"ORCA கடல்சார் தகவல்கள் செயற்கைக்கோள் SST, குளோரோபில், காற்றின் வேகம், அலை உயரம் மற்றும் INCOIS மீன்பிடி மண்டலங்களில் கவனம் செலுத்துகின்றன."
                 )
             else:
@@ -563,9 +627,9 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
     if intent == "SEASONAL_FISHING_INQUIRY":
         ban_period_str = "mid-April to mid-June (East Coast ban)" if basin_name == "Bay of Bengal" else "June to July (West Coast monsoon ban)"
         if is_ta:
-            headline = f"{loc_name} மீன்பிடி பருவம் மற்றும் வழிகாட்டல்"
+            headline = f"{ta_loc} மீன்பிடி பருவம் மற்றும் வழிகாட்டல்"
             narrative = (
-                f"{loc_name} மற்றும் {basin_name} கடற்பகுதியில், அக்டோபர் முதல் மார்ச் வரையிலான குளிர்காலம் "
+                f"{ta_loc} மற்றும் {ta_basin} கடற்பகுதியில், அக்டோபர் முதல் மார்ச் வரையிலான குளிர்காலம் "
                 f"மீன்பிடிக்க மிகவும் உகந்த பருவமாகும். இக்காலத்தில் வஞ்சரம், வவ்வால், கானாங்கெளுத்தி மற்றும் "
                 f"கவலை மீன்கள் அதிகம் கிடைக்கும். மேலும், மீன் இனப்பெருக்க பாதுகாப்பிற்காக வருடாந்திர மீன்பிடி தடைக்காலம் அமலில் இருக்கும்."
             )
@@ -583,9 +647,9 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
     # -------------------------------------------------------------
     if intent == "GENERAL_KNOWLEDGE_INQUIRY":
         if is_ta:
-            headline = f"{loc_name} கடல்சார் அறிவியல் & பொதுத் தகவல்"
+            headline = f"{ta_loc} கடல்சார் அறிவியல் & பொதுத் தகவல்"
             narrative = (
-                f"{loc_name} மற்றும் {basin_name} கடற்பகுதிக்கான பொதுவான கடல் அறிவியல் வழிகாட்டல்: "
+                f"{ta_loc} மற்றும் {ta_basin} கடற்பகுதிக்கான பொதுவான கடல் அறிவியல் வழிகாட்டல்: "
                 f"நிலவு கட்டங்கள் (அமாவாசை/பௌர்ணமி) வலுவான நீரோட்டங்கள் மற்றும் அதிக அலைகளை உருவாக்குகின்றன. "
                 f"இயற்கை சூழல் மற்றும் மீன்வள மேலாண்மை குறித்த கூடுதல் தகவல்களை ORCA வழங்குகிறது."
             )
@@ -607,15 +671,15 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
             w_comment = "Winds are elevated; exercise caution." if w_speed >= 20.0 else "Wind conditions are within safe operational limits."
             w_ta_comment = "காற்றின் வேகம் அதிகம்; எச்சரிக்கையுடன் செல்லவும்." if w_speed >= 20.0 else "காற்றின் வேகம் பாதுகாப்பான அளவில் உள்ளது."
             if is_ta:
-                headline = f"{loc_name} காற்றின் வேகம்"
-                narrative = f"{loc_name} கடற்பகுதியில் தற்போதைய காற்றின் வேகம் {w_speed:.1f} knots ஆகும். {w_ta_comment}"
+                headline = f"{ta_loc} காற்றின் வேகம்"
+                narrative = f"{ta_loc} கடற்பகுதியில் தற்போதைய காற்றின் வேகம் {w_speed:.1f} நாட்ஸ் (knots) ஆகும். {w_ta_comment}"
             else:
                 headline = f"Wind Conditions for {loc_name}"
                 narrative = f"The verified wind speed in current ORCA data near {loc_name} is {w_speed:.1f} knots. {w_comment}"
         else:
             if is_ta:
-                headline = f"{loc_name} காற்றின் வேகம்"
-                narrative = f"{loc_name} பகுதிக்கான சரிபார்க்கப்பட்ட காற்றின் வேகம் தரவு தற்சமயம் கிடைக்கவில்லை."
+                headline = f"{ta_loc} காற்றின் வேகம்"
+                narrative = f"{ta_loc} பகுதிக்கான சரிபார்க்கப்பட்ட காற்றின் வேகம் தரவு தற்சமயம் கிடைக்கவில்லை."
             else:
                 headline = f"Wind Data Unavailable for {loc_name}"
                 narrative = f"I do not have verified wind speed data for {loc_name} in the available ORCA data."
@@ -630,12 +694,13 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
         if ocean.wave_height_m is not None:
             wv_height = ocean.wave_height_m
             sea_desc = ocean.sea_condition or "slight to moderate"
+            sea_desc_ta = _to_ta_sea_condition(ocean.sea_condition)
             if is_extreme:
                 if is_ta:
-                    headline = f"{loc_name} அதிகபட்ச அலை உயரம் மற்றும் நிலை"
+                    headline = f"{ta_loc} அதிகபட்ச அலை உயரம் மற்றும் நிலை"
                     narrative = (
-                        f"{loc_name} கடற்பகுதியில் தற்போதைய அலை உயரம் {wv_height:.1f} மீட்டர்கள். "
-                        f"பொதுவான கடல்சார் அறிவியல் சூழலில், {basin_name} கடற்பகுதியில் தீவிர புயல் காலங்களில் அலைகள் 4 முதல் 8+ மீட்டர்கள் வரை உயரக்கூடும், "
+                        f"{ta_loc} கடற்பகுதியில் தற்போதைய அலை உயரம் {wv_height:.1f} மீட்டர்கள். "
+                        f"பொதுவான கடல்சார் அறிவியல் சூழலில், {ta_basin} கடற்பகுதியில் தீவிர புயல் காலங்களில் அலைகள் 4 முதல் 8+ மீட்டர்கள் வரை உயரக்கூடும், "
                         f"ஆனால் சாதாரண நாட்களில் 1 முதல் 2 மீட்டருக்குள் இருக்கும்."
                     )
                 else:
@@ -649,15 +714,15 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
                 wv_comment = "High wave warning active; exercise extreme caution." if wv_height >= 2.0 else "Wave conditions are manageable for coastal craft."
                 wv_ta_comment = "அலைகள் அதிகமாக உள்ளதால் எச்சரிக்கை தேவை." if wv_height >= 2.0 else "அலைகள் இயல்பான வரம்பில் உள்ளன."
                 if is_ta:
-                    headline = f"{loc_name} அலை உயரம்"
-                    narrative = f"{loc_name} கடற்பகுதியில் அலை உயரம் சுமார் {wv_height:.1f} மீட்டர்கள் ({sea_desc}). {wv_ta_comment}"
+                    headline = f"{ta_loc} அலை உயரம்"
+                    narrative = f"{ta_loc} கடற்பகுதியில் அலை உயரம் சுமார் {wv_height:.1f} மீட்டர்கள் ({sea_desc_ta}). {wv_ta_comment}"
                 else:
                     headline = f"Wave Conditions for {loc_name}"
                     narrative = f"The significant wave height in current ORCA data near {loc_name} is {wv_height:.1f} meters with {sea_desc} sea conditions. {wv_comment}"
         else:
             if is_ta:
-                headline = f"{loc_name} அலை உயரம்"
-                narrative = f"{loc_name} பகுதிக்கான அலை உயரத் தரவு தற்சமயம் கிடைக்கவில்லை."
+                headline = f"{ta_loc} அலை உயரம்"
+                narrative = f"{ta_loc} பகுதிக்கான அலை உயரத் தரவு தற்சமயம் கிடைக்கவில்லை."
             else:
                 headline = f"Wave Height Data Unavailable for {loc_name}"
                 narrative = f"I do not have verified wave-height observations for {loc_name} in the available ORCA data."
@@ -674,8 +739,8 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
         if is_ta:
             headline = "🚨 கடலுக்கு செல்ல வேண்டாம் - பாதுகாப்பு எச்சரிக்கை"
             narrative = (
-                f"எச்சரிக்கை! {loc_name} கடற்பகுதியில் ஆபத்தான காலநிலை உள்ளதால் கடலுக்கு செல்ல வேண்டாம் என அறிவுறுத்தப்படுகிறது. "
-                f"காரணம்: {hazard_desc}. காற்றின் வேகம் {ocean.wind_speed_knots or 30:.1f} நாட்ஸ் வரை வீசக்கூடும். உங்கள் படகுகளை துறைமுகத்தில் பாதுகாப்பாக வைக்கவும்."
+                f"எச்சரிக்கை! {ta_loc} கடற்பகுதியில் ஆபத்தான காலநிலை உள்ளதால் கடலுக்கு செல்ல வேண்டாம் என அறிவுறுத்தப்படுகிறது. "
+                f"காரணம்: தீவிர வானிலை / புயல் எச்சரிக்கை அமலில் உள்ளது. காற்றின் வேகம் {ocean.wind_speed_knots or 30:.1f} நாட்ஸ் வரை வீசக்கூடும். உங்கள் படகுகளை துறைமுகத்தில் பாதுகாப்பாக வைக்கவும்."
             )
         else:
             headline = "🚨 Do not go to sea - Safety Veto Active"
@@ -687,12 +752,12 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
         return headline, narrative
 
     if intent == "SAFETY_INQUIRY":
-        w_val = f"{ocean.wind_speed_knots:.1f} knots" if ocean.wind_speed_knots is not None else "manageable"
-        wv_val = f"{ocean.wave_height_m:.1f} m" if ocean.wave_height_m is not None else "calm"
+        w_val = f"{ocean.wind_speed_knots:.1f} knots" if ocean.wind_speed_knots is not None else "பாதுகாப்பானது"
+        wv_val = f"{ocean.wave_height_m:.1f} m" if ocean.wave_height_m is not None else "இயல்பானது"
         if is_ta:
-            headline = f"🛡️ பாதுகாப்பு நிலை: {safety.status}"
+            headline = f"🛡️ {ta_loc} கடல் பாதுகாப்பு நிலை: பாதுகாப்பானது"
             narrative = (
-                f"{loc_name} கடற்பகுதியில் நிலைமைகள் பாதுகாப்பாக உள்ளன. காற்றின் வேகம் {w_val} மற்றும் அலை உயரம் {wv_val} ஆக பதிவாகியுள்ளது. "
+                f"{ta_loc} கடற்பகுதியில் நிலைமைகள் பாதுகாப்பாக உள்ளன. காற்றின் வேகம் {w_val} மற்றும் அலை உயரம் {wv_val} ஆக பதிவாகியுள்ளது. "
                 f"எந்தவித புயல் அல்லது தீவிர எச்சரிக்கைகளும் தற்போது இல்லை. கடலுக்கு செல்லலாம்."
             )
         else:
@@ -705,15 +770,15 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
         return headline, narrative
 
     # -------------------------------------------------------------
-    # 6. SST INQUIRY
+    # 7. SST INQUIRY
     # -------------------------------------------------------------
     if intent == "SST_INQUIRY":
         if ocean.sst_celsius is not None:
             sst_val = ocean.sst_celsius
             if is_ta:
-                headline = f"{loc_name} கடல் மேற்பரப்பு வெப்பநிலை"
+                headline = f"{ta_loc} கடல் மேற்பரப்பு வெப்பநிலை"
                 narrative = (
-                    f"{loc_name} பகுதியில் செயற்கைக்கோள் பதிவு செய்த கடல் மேற்பரப்பு வெப்பநிலை (SST) {sst_val:.1f}°C ஆகும். "
+                    f"{ta_loc} பகுதியில் செயற்கைக்கோள் பதிவு செய்த கடல் மேற்பரப்பு வெப்பநிலை (SST) {sst_val:.1f}°C ஆகும். "
                     f"இது கானாங்கெளுத்தி, வஞ்சரம் மற்றும் கவலை போன்ற மீன் கூட்டங்களுக்கு உகந்த வெப்ப மண்டலமாகும்."
                 )
             else:
@@ -724,23 +789,23 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
                 )
         else:
             if is_ta:
-                headline = f"{loc_name} வெப்பநிலை தரவு இல்லை"
-                narrative = f"{loc_name} பகுதிக்கான சரிபார்க்கப்பட்ட கடல் மேற்பரப்பு வெப்பநிலை (SST) தரவு தற்போது இல்லை."
+                headline = f"{ta_loc} வெப்பநிலை தரவு இல்லை"
+                narrative = f"{ta_loc} பகுதிக்கான சரிபார்க்கப்பட்ட கடல் மேற்பரப்பு வெப்பநிலை (SST) தரவு தற்போது இல்லை."
             else:
                 headline = f"SST Data Unavailable for {loc_name}"
                 narrative = f"I do not have verified Sea Surface Temperature (SST) data for {loc_name} in the current dataset."
         return headline, narrative
 
     # -------------------------------------------------------------
-    # 7. CHLOROPHYLL INQUIRY
+    # 8. CHLOROPHYLL INQUIRY
     # -------------------------------------------------------------
     if intent == "CHLOROPHYLL_INQUIRY":
         if ocean.chlorophyll_mg_m3 is not None:
             chl_val = ocean.chlorophyll_mg_m3
             if is_ta:
-                headline = f"{loc_name} குளோரோபில் அளவு"
+                headline = f"{ta_loc} குளோரோபில் அளவு"
                 narrative = (
-                    f"{loc_name} கடற்பகுதியில் குளோரோபில்-ஏ செறிவு {chl_val:.2f} mg/m³ ஆக உள்ளது. "
+                    f"{ta_loc} கடற்பகுதியில் குளோரோபில்-ஏ செறிவு {chl_val:.2f} mg/m³ ஆக உள்ளது. "
                     f"இது அதிக தாவர மிதவை நுண்ணுயிர் உற்பத்தியையும், வளமான மீன் தீவனப் பகுதியையும் குறிக்கிறது."
                 )
             else:
@@ -751,24 +816,25 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
                 )
         else:
             if is_ta:
-                headline = f"{loc_name} குளோரோபில் தரவு இல்லை"
-                narrative = f"{loc_name} பகுதிக்கான குளோரோபில் அளவு தரவு கிடைக்கவில்லை."
+                headline = f"{ta_loc} குளோரோபில் தரவு இல்லை"
+                narrative = f"{ta_loc} பகுதிக்கான குளோரோபில் அளவு தரவு கிடைக்கவில்லை."
             else:
                 headline = f"Chlorophyll Data Unavailable for {loc_name}"
                 narrative = f"I do not have verified Chlorophyll-a satellite data for {loc_name} in the current dataset."
         return headline, narrative
 
     # -------------------------------------------------------------
-    # 8. WHY RECOMMENDATION INQUIRY
+    # 9. WHY RECOMMENDATION INQUIRY
     # -------------------------------------------------------------
     if intent == "WHY_RECOMMENDATION_INQUIRY":
         if rec:
             reasons_text = ", ".join(rec.reasons) if rec.reasons else "favorable chlorophyll and thermal fronts"
+            rec_ta_name = _to_ta_location(rec.name)
             if is_ta:
-                headline = f"{rec.name} பரிந்துரைக்கான காரணங்கள்"
+                headline = f"{rec_ta_name} பரிந்துரைக்கான காரணங்கள்"
                 narrative = (
-                    f"{loc_name} அருகில் {rec.name} பரிந்துரைக்கப்பட காரணம்: இது 100-க்கு {rec.suitability_score:.0f} "
-                    f"பொருத்தநிலை மதிப்பெண் பெற்றுள்ளது. சாதகமான கடல் அளவுருக்கள் ({reasons_text}), "
+                    f"{ta_loc} அருகில் {rec_ta_name} பரிந்துரைக்கப்பட காரணம்: இது 100-க்கு {rec.suitability_score:.0f} "
+                    f"பொருத்தநிலை மதிப்பெண் பெற்றுள்ளது. சாதகமான கடல் அளவுருக்கள், "
                     f"குறுகிய பயண தூரம் ({rec.distance_km_min:.0f}-{rec.distance_km_max:.0f} கி.மீ) மற்றும் தெளிவான பாதுகாப்பு சூழல் ஆகியவை முக்கிய காரணங்களாகும்."
                 )
             else:
@@ -781,21 +847,22 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
         else:
             if is_ta:
                 headline = "பரிந்துரை காரணங்கள்"
-                narrative = f"{loc_name} பகுதியில் தற்சமயம் செயலில் உள்ள பரிந்துரைக்கப்பட்ட மீன்பிடி மண்டலம் ஏதும் இல்லை."
+                narrative = f"{ta_loc} பகுதியில் தற்சமயம் செயலில் உள்ள பரிந்துரைக்கப்பட்ட மீன்பிடி மண்டலம் ஏதும் இல்லை."
             else:
                 headline = "No Active Recommendation"
                 narrative = f"There is currently no active recommended fishing zone to explain for {loc_name}."
         return headline, narrative
 
     # -------------------------------------------------------------
-    # 9. DISTANCE / BEARING INQUIRY
+    # 10. DISTANCE / BEARING INQUIRY
     # -------------------------------------------------------------
     if intent == "DISTANCE_BEARING_INQUIRY":
         if rec:
+            rec_ta_name = _to_ta_location(rec.name)
             if is_ta:
-                headline = f"{rec.name} தூரம் மற்றும் திசை"
+                headline = f"{rec_ta_name} தூரம் மற்றும் திசை"
                 narrative = (
-                    f"பரிந்துரைக்கப்பட்ட {rec.name} மண்டலம் கரையில் இருந்து சுமார் {rec.distance_km_min:.0f} முதல் {rec.distance_km_max:.0f} கி.மீ "
+                    f"பரிந்துரைக்கப்பட்ட {rec_ta_name} மண்டலம் கரையில் இருந்து சுமார் {rec.distance_km_min:.0f} முதல் {rec.distance_km_max:.0f} கி.மீ "
                     f"தூரத்தில் {rec.bearing_deg:.0f}° திசையில் அமைந்துள்ளது. நீர் ஆழம் {rec.depth_m_min:.0f} முதல் {rec.depth_m_max:.0f} மீட்டர்கள்."
                 )
             else:
@@ -806,22 +873,23 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
                 )
         else:
             if is_ta:
-                headline = f"{loc_name} தூர விவரம்"
-                narrative = f"{loc_name} பகுதிக்கு சரிபார்க்கப்பட்ட மண்டல தூர விவரங்கள் கிடைக்கவில்லை."
+                headline = f"{ta_loc} தூர விவரம்"
+                narrative = f"{ta_loc} பகுதிக்கு சரிபார்க்கப்பட்ட மண்டல தூர விவரங்கள் கிடைக்கவில்லை."
             else:
                 headline = f"Distance Details for {loc_name}"
                 narrative = f"No verified fishing zone coordinate was returned to compute distance for {loc_name}."
         return headline, narrative
 
     # -------------------------------------------------------------
-    # 10. BEST ZONE / COMPARISON INQUIRY
+    # 11. BEST ZONE / COMPARISON INQUIRY
     # -------------------------------------------------------------
     if intent == "BEST_ZONE_INQUIRY":
         if rec:
+            rec_ta_name = _to_ta_location(rec.name)
             if is_ta:
-                headline = f"சிறந்த மீன்பிடி மண்டலம்: {rec.name}"
+                headline = f"சிறந்த மீன்பிடி மண்டலம்: {rec_ta_name}"
                 narrative = (
-                    f"{loc_name} அருகிலுள்ள கிடைக்கக்கூடிய மண்டலங்களை ஒப்பிடும்போது, {rec.name} பகுதி 100-க்கு {rec.suitability_score:.0f} "
+                    f"{ta_loc} அருகிலுள்ள கிடைக்கக்கூடிய மண்டலங்களை ஒப்பிடும்போது, {rec_ta_name} பகுதி 100-க்கு {rec.suitability_score:.0f} "
                     f"மதிப்பெண்ணுடன் மிகச் சிறந்த மீன்பிடி வாய்ப்பை வழங்குகிறது. தூரம் சுமார் {rec.distance_km_min:.0f}-{rec.distance_km_max:.0f} கி.மீ."
                 )
             else:
@@ -832,22 +900,22 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
                 )
         else:
             if is_ta:
-                headline = f"{loc_name} மண்டல ஒப்பீடு"
-                narrative = f"{loc_name} கடற்பகுதியில் உயர் உற்பத்தி மண்டலங்கள் எதுவும் கிடைக்கவில்லை."
+                headline = f"{ta_loc} மண்டல ஒப்பீடு"
+                narrative = f"{ta_loc} கடற்பகுதியில் உயர் உற்பத்தி மண்டலங்கள் எதுவும் கிடைக்கவில்லை."
             else:
                 headline = f"Zone Evaluation for {loc_name}"
                 narrative = f"No high-confidence candidate zones were identified for comparison near {loc_name}."
         return headline, narrative
 
     # -------------------------------------------------------------
-    # 11. SPECIES INQUIRY
+    # 12. SPECIES INQUIRY
     # -------------------------------------------------------------
     if intent == "SPECIES_INQUIRY":
         if context.species.available and context.species.list:
             if is_ta:
-                headline = f"{loc_name} துறைமுகப் பகுதியில் கிடைக்கும் முக்கிய மீன் வகைகள்"
+                headline = f"{ta_loc} துறைமுகப் பகுதியில் கிடைக்கும் முக்கிய மீன் வகைகள்"
                 narrative = (
-                    f"{loc_name} துறைமுகப் பகுதியில் வஞ்சரம் (Seer Fish), கானாங்கெளுத்தி (Mackerel), "
+                    f"{ta_loc} துறைமுகப் பகுதியில் வஞ்சரம் (Seer Fish), கானாங்கெளுத்தி (Mackerel), "
                     f"கவலை (Sardine), வவ்வால் (Pomfret), நெத்திலி (Anchovies), சங்கரா (Red Snapper), "
                     f"மற்றும் சூரை (Tuna) ஆகிய மீன் வகைகள் அதிகம் கிடைக்கும்."
                 )
@@ -861,23 +929,24 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
         else:
             if is_ta:
                 headline = "மீன் வகை தரவு தற்சமயம் இல்லை"
-                narrative = f"{loc_name} பகுதிக்கான சரிபார்க்கப்பட்ட மீன் வகை தரவு தற்போது கிடைக்கவில்லை."
+                narrative = f"{ta_loc} பகுதிக்கான சரிபார்க்கப்பட்ட மீன் வகை தரவு தற்போது கிடைக்கவில்லை."
             else:
                 headline = "Species Data Unavailable"
                 narrative = f"ORCA does not currently have verified species data for {loc_name}."
         return headline, narrative
 
     # -------------------------------------------------------------
-    # 12. HAZARD / WEATHER INQUIRY
+    # 13. HAZARD / WEATHER INQUIRY
     # -------------------------------------------------------------
     if intent in ("HAZARD_INQUIRY", "WEATHER_INQUIRY"):
-        w_speed = f"{ocean.wind_speed_knots:.1f} kts" if ocean.wind_speed_knots is not None else "unavailable"
-        wv_ht = f"{ocean.wave_height_m:.1f} m" if ocean.wave_height_m is not None else "unavailable"
+        w_speed = f"{ocean.wind_speed_knots:.1f} kts" if ocean.wind_speed_knots is not None else "கிடைக்கவில்லை"
+        wv_ht = f"{ocean.wave_height_m:.1f} m" if ocean.wave_height_m is not None else "கிடைக்கவில்லை"
+        sea_desc_ta = _to_ta_sea_condition(ocean.sea_condition)
         if is_ta:
-            headline = f"{loc_name} கடல் வானிலை நிலை"
+            headline = f"{ta_loc} கடல் வானிலை நிலை"
             narrative = (
-                f"{loc_name} கடற்பகுதியில் காற்றின் வேகம் {w_speed}, அலை உயரம் {wv_ht}, "
-                f"கடல் நிலை: {ocean.sea_condition or 'பாதுகாப்பானது'}."
+                f"{ta_loc} கடற்பகுதியில் காற்றின் வேகம் {w_speed}, அலை உயரம் {wv_ht}, "
+                f"மற்றும் கடல் நிலை {sea_desc_ta} என பதிவாகியுள்ளது."
             )
         else:
             headline = f"Marine Weather for {loc_name}"
@@ -888,14 +957,15 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
         return headline, narrative
 
     # -------------------------------------------------------------
-    # 13. FISHING RECOMMENDATION (ONLY IF EXPLICITLY REQUESTED)
+    # 14. FISHING RECOMMENDATION (ONLY IF EXPLICITLY REQUESTED)
     # -------------------------------------------------------------
     if intent == "FISHING_RECOMMENDATION":
         if rec:
+            rec_ta_name = _to_ta_location(rec.name)
             if is_ta:
-                headline = f"{loc_name} மீன்பிடி பரிந்துரை: {rec.name}"
+                headline = f"{ta_loc} மீன்பிடி பரிந்துரை: {rec_ta_name}"
                 narrative = (
-                    f"{loc_name} கடற்பகுதியில் ORCA பரிந்துரைக்கும் சிறந்த மீன்பிடி மண்டலம் {rec.name} ஆகும். "
+                    f"{ta_loc} கடற்பகுதியில் ORCA பரிந்துரைக்கும் சிறந்த மீன்பிடி மண்டலம் {rec_ta_name} ஆகும். "
                     f"இது கரையில் இருந்து சுமார் {rec.distance_km_min:.0f} முதல் {rec.distance_km_max:.0f} கி.மீ "
                     f"தூரத்தில் {rec.bearing_deg:.0f}° திசையில் அமைந்துள்ளது. பொருத்தநிலை மதிப்பெண் 100-க்கு {rec.suitability_score:.0f} "
                     f"மற்றும் கடல் பாதுகாப்பு தெளிவாக உள்ளது."
@@ -910,17 +980,17 @@ def _dynamic_query_grounded_generator(context: VerifiedContext) -> Tuple[str, st
             return headline, narrative
         else:
             if is_ta:
-                return f"{loc_name} மீன்பிடி தகவல்", f"{loc_name} பகுதிக்கு தற்சமயம் சரிபார்க்கப்பட்ட உயர் உற்பத்தி மீன்பிடி மண்டலம் கிடைக்கவில்லை."
+                return f"{ta_loc} மீன்பிடி தகவல்", f"{ta_loc} பகுதிக்கு தற்சமயம் சரிபார்க்கப்பட்ட உயர் உற்பத்தி மீன்பிடி மண்டலம் கிடைக்கவில்லை."
             else:
                 return f"No Active Zone for {loc_name}", f"No high-confidence Potential Fishing Zone was identified for {loc_name}."
 
     # -------------------------------------------------------------
-    # 14. GENERAL ADVISORY FALLBACK (NON-RECOMMENDATION QUERIES)
+    # 15. GENERAL ADVISORY FALLBACK (NON-RECOMMENDATION QUERIES)
     # -------------------------------------------------------------
     if is_ta:
-        headline = f"{loc_name} ORCA கடல்சார் வழிகாட்டல்"
+        headline = f"{ta_loc} ORCA கடல்சார் வழிகாட்டல்"
         narrative = (
-            f"ORCA {loc_name} கடற்பகுதியை தொடர்ந்து கண்காணித்து வருகிறது. "
+            f"ORCA {ta_loc} கடற்பகுதியை தொடர்ந்து கண்காணித்து வருகிறது. "
             f"வானிலை, காற்றின் வேகம், அலை உயரம், கடல் மேற்பரப்பு வெப்பநிலை மற்றும் கடல் பாதுகாப்பு குறித்து என்னிடம் கேட்கலாம்."
         )
     else:

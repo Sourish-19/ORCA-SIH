@@ -68,7 +68,7 @@ export function App() {
                 persona={persona}
                 onPersonaChange={setPersona}
                 dataMode={(currentResponse?.data_mode as DataMode) || 'CACHED'}
-                location={currentScenario?.location || 'Chennai • Bay of Bengal'}
+                location={currentResponse?.intent?.location_name ? `${currentResponse.intent.location_name} • ${currentResponse.marine_basin || 'Coastal Waters'}` : (currentScenario?.location || 'India Coastal Waters')}
                 selectedScenarioTitle={currentScenario?.title}
                 onOpenScenarios={() => window.location.href = '/demo-scenarios'}
               />

@@ -34,7 +34,7 @@ from app.models.context_builder import (
 from app.models.decision import DecisionResult, LocationDecision
 from app.models.evidence import EvidenceBundle, MatchedSST, MatchedChlorophyll, SpatialMatchMetadata
 from app.models.explanation import LLMExplainerConfig
-from app.models.hazard import NormalizedHazardWarning, NormalizedMarineWeather
+from app.models.hazard import HazardWarning, NormalizedHazardWarning, NormalizedMarineWeather
 from app.models.ocean import (
     CommonMetadata,
     NormalizedPFZRecord,
@@ -159,12 +159,22 @@ def _build_district_bundles_and_decision(
     # 1. Fetch weather & warnings
     mw, _ = fetch_marine_weather(target_lat, target_lon)
     all_warnings = fetch_hazard_warnings()
+
+    def _is_warning_applicable(w: HazardWarning) -> bool:
+        if w.bounding_box and len(w.bounding_box) == 4:
+            lat_min, lon_min, lat_max, lon_max = w.bounding_box
+            if lat_min <= target_lat <= lat_max and lon_min <= target_lon <= lon_max:
+                return True
+        w_text = f"{w.affected_sector or ''} {w.title or ''} {w.description or ''}".lower()
+        return loc_name.lower() in w_text
+
+    applicable_warnings = [w for w in all_warnings if _is_warning_applicable(w)]
+
     # Check for active cyclone / severe warnings in this sector
     is_cyclone = any(
         w.severity in ("RED", "SEVERE") or "cyclone" in w.title.lower() or "cyclone" in w.description.lower()
-        for w in all_warnings
-        if loc_name.lower() in w.affected_sector.lower() or loc_name.lower() in w.title.lower()
-    ) or ("vizag" in loc_name.lower() or "visakhapatnam" in loc_name.lower())
+        for w in applicable_warnings
+    )
 
     # Convert weather
     norm_weather = NormalizedMarineWeather(
@@ -201,8 +211,7 @@ def _build_district_bundles_and_decision(
             cyclone_warning_active=is_cyclone,
             description=w.description,
         )
-        for w in all_warnings
-        if loc_name.lower() in w.affected_sector.lower() or loc_name.lower() in w.title.lower()
+        for w in applicable_warnings
     ]
 
     sst_obs, chl_obs, _ = fetch_ocean_grid(target_lat, target_lon)
@@ -321,13 +330,6 @@ def run_recommendation(
     resolved_audience = audience if audience in ("fisherman", "analyst") else "fisherman"
 
     loc_name = parsed_intent.location_name
-    # Specific location keyword overrides
-    if any(k in query.lower() for k in ("vizag", "visakhapatnam")):
-        loc_name = "Visakhapatnam"
-    elif any(k in query.lower() for k in ("kochi", "cochin", "munambam")):
-        loc_name = "Kochi"
-    elif any(k in query.lower() for k in ("mangalore", "ullal", "panambur")):
-        loc_name = "Mangalore"
 
     is_chennai_region = loc_name.lower() in (
         "chennai", "ennore", "kasimedu", "royapuram", "ennorekuppam",
@@ -366,7 +368,7 @@ def run_recommendation(
         sea_cond = active_weather.sea_condition if active_weather else "slight to moderate"
         geo_lat, geo_lon = 13.0827, 80.2707
     else:
-        # Outside Chennai sector (Visakhapatnam, Kochi, Mangalore, etc.)
+        # Generic coastal sector resolution outside Chennai
         geo = geocode_location(loc_name)
         geo_lat, geo_lon = geo.latitude, geo.longitude
 
@@ -380,7 +382,7 @@ def run_recommendation(
         evaluated_count = len(decision.all_decisions)
 
         wind_val = active_weather.wind_speed_knots_max if active_weather else 16.0
-        wave_val = 3.2 if "visakhapatnam" in loc_name.lower() or "vizag" in loc_name.lower() else (1.8 if "mangalore" in loc_name.lower() else 1.5)
+        wave_val = active_weather.wind_speed_knots_max * 0.12 if active_weather else 1.5
         sea_cond = active_weather.sea_condition if active_weather else ("Very Rough" if wind_val > 25 else "Moderate")
 
     # Step 6: Build VerifiedContext (Authoritative Ground Truth)

@@ -12,6 +12,41 @@ from app.models.request import SafetyEvaluation, SuitabilityBreakdown, Structure
 from app.models.trace import EvidenceRecord
 
 
+TAMIL_LOCATIONS_MAP = {
+    "chennai": "சென்னை",
+    "visakhapatnam": "விசாகப்பட்டினம்",
+    "vizag": "விசாகப்பட்டினம்",
+    "kochi": "கொச்சி",
+    "cochin": "கொச்சி",
+    "mangalore": "மங்களூர்",
+    "ennore": "எண்ணூர்",
+    "ennorekuppam": "எண்ணூர்குப்பம்",
+    "kasimedu": "காசிமேடு",
+    "royapuram": "ராயபுரம்",
+    "pulicat": "பழவேற்காடு",
+    "kovalam": "கோவளம்",
+    "mahabalipuram": "மகாபலிபுரம்",
+    "cuddalore": "கடலூர்",
+    "puducherry": "புதுச்சேரி",
+    "pondicherry": "புதுச்சேரி",
+    "nagapattinam": "நாகப்பட்டினம்",
+    "karaikal": "காரைக்கால்",
+    "rameswaram": "ராமேஸ்வரம்",
+    "tuticorin": "தூத்துக்குடி",
+    "kanyakumari": "கன்னியாகுமரி",
+    "mumbai": "மும்பை",
+    "goa": "கோவா",
+    "calicut": "கோழிக்கோடு",
+    "puri": "புரி",
+    "paradip": "பாராதீப்",
+    "kolkata": "கொல்கத்தா",
+}
+
+
+def _to_ta_loc(loc: str) -> str:
+    return TAMIL_LOCATIONS_MAP.get(loc.lower(), loc)
+
+
 def run_synthesis_agent(
     intent: StructuredIntent,
     safety: SafetyEvaluation,
@@ -28,14 +63,15 @@ def run_synthesis_agent(
     is_tamil = intent.detected_language.lower() in ("tamil", "ta")
     loc_name = intent.location_name
     intent_type = intent.primary_intent
+    ta_loc = _to_ta_loc(loc_name) if is_tamil else loc_name
     # 0. CLARIFICATION INQUIRY
     if intent_type == "CLARIFICATION_INQUIRY":
         if is_tamil:
             narrative = (
-                f"{loc_name} கடற்பகுதிக்கு என்ன தகவல் தேவை என்பதை தயவுசெய்து குறிப்பிடவும். "
+                f"{ta_loc} கடற்பகுதிக்கு என்ன தகவல் தேவை என்பதை தயவுசெய்து குறிப்பிடவும். "
                 f"மீன்பிடி மண்டல பரிந்துரைகள், அலை மற்றும் காற்றின் நிலை, கடல் வானிலை, பாதுகாப்பு எச்சரிக்கைகள் அல்லது மீன்பிடி பருவம் ஆகியவற்றில் நான் உதவ முடியும்."
             )
-            full_answer = f"ℹ️ **{loc_name.upper()} பற்றிய விளக்கம் தேவை**\n\n{narrative}"
+            full_answer = f"ℹ️ **{ta_loc} பற்றிய விளக்கம் தேவை**\n\n{narrative}"
         else:
             narrative = (
                 f"Could you please clarify what information you need regarding {loc_name}? "
