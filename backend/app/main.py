@@ -39,6 +39,12 @@ app.include_router(recommend_router)
 app.include_router(map_router)
 
 
+@app.get("/api/vessels")
+def get_vessels_alias(location: Optional[str] = None, query: Optional[str] = None):
+    from app.routers.map import get_vessels_telemetry
+    return get_vessels_telemetry(location=location, query=query)
+
+
 @app.get("/")
 def read_root():
     return {

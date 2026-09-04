@@ -3,6 +3,113 @@ import { Anchor, Navigation, ShieldAlert, CheckCircle2, AlertTriangle, Radio, X,
 import { MarineMap } from '../components/map/MarineMap';
 import { marineApi } from '../services/api/marineApi';
 
+const DEFAULT_VESSELS = [
+  {
+    id: "v_104",
+    vessel_id: "IND-TN-02-MM-104",
+    name: "MFV Sea Queen",
+    type: "Deep Sea Mechanized Trawler",
+    badge: "⚓ Fishing",
+    badgeStyle: "bg-cyan-950 text-cyan-300 border-cyan-800",
+    proximity: "Inside PFZ Zone #12A",
+    lastPing: "2 min ago",
+    isHazard: false,
+    speed_knots: 8.5,
+    heading_deg: 105,
+    harbour: "Kasimedu Harbour (Chennai)",
+    latitude: 13.1420,
+    longitude: 80.5210,
+    mmsi: "419001104",
+    imo: "IMO 9821104",
+    call_sign: "VW104",
+    crew_onboard: 7,
+    fuel_level_pct: 84,
+    engine_status: "Nominal (1400 RPM)",
+    sea_depth_m: 32.4,
+    vhf_channel: "CH 16 (156.8 MHz)",
+    owner: "Kasimedu Deepsea Cooperative",
+    status: "Active Fishing Operation (PFZ Zone #12A)"
+  },
+  {
+    id: "v_302",
+    vessel_id: "IND-AP-05-MM-302",
+    name: "MFV Ocean Sentinel",
+    type: "Trawler",
+    badge: "⚠️ HAZARD",
+    badgeStyle: "bg-red-950 text-red-400 border-red-800",
+    proximity: "3.2km from Gale Warning",
+    lastPing: "1 min ago",
+    isHazard: true,
+    speed_knots: 4.1,
+    heading_deg: 290,
+    harbour: "Visakhapatnam Fishing Harbour",
+    latitude: 17.4200,
+    longitude: 83.4500,
+    mmsi: "419003302",
+    imo: "IMO 9823302",
+    call_sign: "VW302",
+    crew_onboard: 5,
+    fuel_level_pct: 42,
+    engine_status: "Heavy Rough Seas (850 RPM)",
+    sea_depth_m: 48.0,
+    vhf_channel: "CH 16 / Distress Channel",
+    owner: "Bay Fishermen Alliance",
+    status: "HAZARD ADVISORY: High Gale Warning Proximity"
+  },
+  {
+    id: "v_088",
+    vessel_id: "IND-TN-01-MM-088",
+    name: "MFV Blue Marlin",
+    type: "Gillnetter",
+    badge: "🚢 Transit",
+    badgeStyle: "bg-slate-900 text-slate-300 border-slate-700",
+    proximity: "1.5km from PFZ #100",
+    lastPing: "5 min ago",
+    isHazard: false,
+    speed_knots: 6.2,
+    heading_deg: 120,
+    harbour: "Kasimedu Harbour (Chennai)",
+    latitude: 12.9510,
+    longitude: 80.4510,
+    mmsi: "419001088",
+    imo: "IMO 9821088",
+    call_sign: "VW088",
+    crew_onboard: 4,
+    fuel_level_pct: 91,
+    engine_status: "Cruising (1100 RPM)",
+    sea_depth_m: 18.2,
+    vhf_channel: "CH 14 (Port Operations)",
+    owner: "Chennai Artisanal Fleet",
+    status: "In Transit to Inshore Fishing Coordinates"
+  },
+  {
+    id: "v_211",
+    vessel_id: "IND-TN-04-MM-211",
+    name: "MFV Kasimedu Pride",
+    type: "Motorized Craft",
+    badge: "🚢 Transit",
+    badgeStyle: "bg-slate-900 text-slate-300 border-slate-700",
+    proximity: "5.0km from Kasimedu Base",
+    lastPing: "12 min ago",
+    isHazard: false,
+    speed_knots: 5.5,
+    heading_deg: 90,
+    harbour: "Kasimedu Harbour (Chennai)",
+    latitude: 13.1200,
+    longitude: 80.3500,
+    mmsi: "419004211",
+    imo: "IMO 9824211",
+    call_sign: "VW211",
+    crew_onboard: 3,
+    fuel_level_pct: 78,
+    engine_status: "Idle / Low Speed (700 RPM)",
+    sea_depth_m: 12.0,
+    vhf_channel: "CH 16 (156.8 MHz)",
+    owner: "Royapuram Fishermen Society",
+    status: "Returning to Kasimedu Base Jetty"
+  }
+];
+
 export const FleetOverviewPage: React.FC = () => {
   const [fleetData, setFleetData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -61,7 +168,7 @@ export const FleetOverviewPage: React.FC = () => {
     showToast(`[AIS EMERGENCY BROADCAST] Dispatched VHF channel ${vessel.vhf_channel || 'CH 16'} emergency alert to Indian Coast Guard Sector 12 for ${vessel.vessel_id || vessel.name}`);
   };
 
-  const vessels = fleetData?.vessels || [];
+  const vessels = (fleetData?.vessels && fleetData.vessels.length > 0) ? fleetData.vessels : DEFAULT_VESSELS;
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-start h-[calc(100vh-80px)] relative">
