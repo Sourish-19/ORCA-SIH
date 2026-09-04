@@ -259,20 +259,6 @@ export const MapView: React.FC<MapViewProps> = ({
 
       if (map && map.isStyleLoaded()) {
         updateMapSourcesWithData(map, data);
-
-        if (data.metadata?.center && data.metadata?.zoom) {
-          const cur = map.getCenter();
-          const target = data.metadata.center;
-          const dist = Math.hypot(cur.lng - target[0], cur.lat - target[1]);
-          if (dist > 0.05 || Math.abs(map.getZoom() - data.metadata.zoom) > 0.3) {
-            map.flyTo({
-              center: target,
-              zoom: data.metadata.zoom,
-              essential: true,
-              duration: 900
-            });
-          }
-        }
       }
     } catch (err) {
       console.warn('[ORCA MAP] Backend sync fallback to local GeoJSON:', err);
@@ -1133,13 +1119,14 @@ export const MapView: React.FC<MapViewProps> = ({
 
     const cur = map.getCenter();
     const dist = Math.hypot(cur.lng - targetLon, cur.lat - targetLat);
-    if (dist > 0.008 || Math.abs(map.getZoom() - targetZoom) > 0.2) {
+    if (dist > 0.0005 || Math.abs(map.getZoom() - targetZoom) > 0.1) {
       map.flyTo({
         center: [targetLon, targetLat],
         zoom: targetZoom,
         essential: true,
         duration: 1100
       });
+      setCurrentMapZoom(targetZoom);
     }
   }, [targetLon, targetLat, targetZoom]);
 
