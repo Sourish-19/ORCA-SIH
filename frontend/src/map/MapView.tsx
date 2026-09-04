@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Map, NavigationControl, Popup } from 'maplibre-gl';
+import { Map, NavigationControl, Popup, Marker } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import {
   Navigation,
@@ -175,6 +175,7 @@ export const MapView: React.FC<MapViewProps> = ({
   const [backendMapConfig, setBackendMapConfig] = useState<any>(null);
 
   const cachedBackendLayersRef = useRef<any>(null);
+  const domMarkersRef = useRef<any[]>([]);
   const onSelectZoneRef = useRef(onSelectZone);
   onSelectZoneRef.current = onSelectZone;
 
@@ -584,6 +585,84 @@ export const MapView: React.FC<MapViewProps> = ({
         }
       } catch (e) {}
     });
+
+    // 8. Attach High-Contrast HTML DOM Badges & Markers for instant visual clarity at all zoom levels
+    try {
+      domMarkersRef.current.forEach((m) => {
+        try { m.remove(); } catch (e) {}
+      });
+      domMarkersRef.current = [];
+
+      // Kasimedu Harbour HTML Marker
+      if (currentVis.ports !== false) {
+        const harbourEl = document.createElement('div');
+        harbourEl.innerHTML = `
+          <div style="background:#0284c7; color:#ffffff; padding:4px 9px; border-radius:12px; border:2px solid #ffffff; font-family:monospace; font-weight:bold; font-size:11px; box-shadow:0 4px 14px rgba(0,0,0,0.6); display:flex; align-items:center; gap:4px; white-space:nowrap">
+            ⚓ Kasimedu Harbour
+          </div>
+        `;
+        const m = new Marker({ element: harbourEl, anchor: 'bottom' })
+          .setLngLat([80.2974, 13.1258])
+          .addTo(map);
+        domMarkersRef.current.push(m);
+      }
+
+      // PFZ #12A Target HTML Marker
+      if (currentVis.pfz) {
+        const pfzEl = document.createElement('div');
+        pfzEl.innerHTML = `
+          <div style="background:#059669; color:#ffffff; padding:5px 11px; border-radius:16px; border:2px solid #a7f3d0; font-family:monospace; font-weight:900; font-size:12px; box-shadow:0 0 20px rgba(16,185,129,0.7); display:flex; align-items:center; gap:5px; white-space:nowrap">
+            🐟 PFZ Zone #12A (88% Score)
+          </div>
+        `;
+        const m = new Marker({ element: pfzEl, anchor: 'bottom' })
+          .setLngLat([80.6210, 13.1850])
+          .addTo(map);
+        domMarkersRef.current.push(m);
+
+        // Nearshore PFZ #100
+        const pfz100El = document.createElement('div');
+        pfz100El.innerHTML = `
+          <div style="background:#047857; color:#ffffff; padding:4px 8px; border-radius:12px; border:1.5px solid #a7f3d0; font-family:monospace; font-weight:bold; font-size:11px; box-shadow:0 0 10px rgba(16,185,129,0.5); display:flex; align-items:center; gap:4px; white-space:nowrap">
+            🐟 PFZ #100 (94% Score)
+          </div>
+        `;
+        const m100 = new Marker({ element: pfz100El, anchor: 'bottom' })
+          .setLngLat([80.4200, 13.1500])
+          .addTo(map);
+        domMarkersRef.current.push(m100);
+      }
+
+      // AIS Vessel MFV Sea Queen HTML Marker
+      if (currentVis.vessels) {
+        const vesselEl = document.createElement('div');
+        vesselEl.innerHTML = `
+          <div style="background:#0c4a6e; color:#7dd3fc; padding:4px 8px; border-radius:10px; border:1.5px solid #38bdf8; font-family:monospace; font-weight:bold; font-size:11px; box-shadow:0 4px 10px rgba(0,0,0,0.6); display:flex; align-items:center; gap:4px; white-space:nowrap">
+            🚢 MFV Sea Queen (8.5 kts)
+          </div>
+        `;
+        const vm = new Marker({ element: vesselEl, anchor: 'bottom' })
+          .setLngLat([80.5210, 13.1420])
+          .addTo(map);
+        domMarkersRef.current.push(vm);
+      }
+
+      // SST Grid HTML Marker
+      if (currentVis.sst) {
+        const sstEl = document.createElement('div');
+        sstEl.innerHTML = `
+          <div style="background:#78350f; color:#fde68a; padding:3px 7px; border-radius:8px; border:1px solid #f59e0b; font-family:monospace; font-weight:bold; font-size:10px; opacity:0.95; white-space:nowrap">
+            🌡️ SST Grid 28.4°C
+          </div>
+        `;
+        const sm = new Marker({ element: sstEl, anchor: 'center' })
+          .setLngLat([80.3800, 13.1500])
+          .addTo(map);
+        domMarkersRef.current.push(sm);
+      }
+    } catch (err) {
+      console.warn('[ORCA MAP] HTML DOM Marker error:', err);
+    }
   }, [isVeto]);
 
   // Set up click popups and cursor hover effects ONCE per map instance
