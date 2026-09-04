@@ -76,7 +76,7 @@ export function App() {
           >
             <Route path="/" element={<Dashboard response={currentResponse} onQuerySubmit={handleRunQuery} isLoading={isLoading} />} />
             <Route path="/dashboard" element={<Dashboard response={currentResponse} onQuerySubmit={handleRunQuery} isLoading={isLoading} />} />
-            <Route path="/agent-execution" element={<AgentExecution response={currentResponse} />} />
+            <Route path="/agent-execution" element={<AgentExecution response={currentResponse} onQuerySubmit={handleRunQuery} isLoading={isLoading} />} />
             <Route path="/marine-map" element={<MarineMapPage response={currentResponse} />} />
             <Route path="/marine_map" element={<MarineMapPage response={currentResponse} />} />
             <Route path="/map" element={<MarineMapPage response={currentResponse} />} />

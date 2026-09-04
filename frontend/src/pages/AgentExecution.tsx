@@ -4,11 +4,25 @@ import { ORCAResponse } from '../types';
 
 interface AgentExecutionProps {
   response: ORCAResponse | null;
+  onQuerySubmit?: (query: string) => void;
+  isLoading?: boolean;
 }
 
-export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
+export const AgentExecution: React.FC<AgentExecutionProps> = ({ response, onQuerySubmit, isLoading = false }) => {
   const [queryInput, setQueryInput] = useState('Where should I fish tomorrow near Chennai?');
   const [activeLang, setActiveLang] = useState<'EN' | 'TA'>('EN');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (queryInput.trim() && onQuerySubmit) {
+      onQuerySubmit(queryInput.trim());
+    }
+  };
+
+  const intent = response?.intent;
+  const isVeto = response?.safety?.veto_triggered;
+  const vetoReason = response?.safety?.veto_reasons?.join(', ') || response?.safety?.safety_summary;
+  const suitabilityScore = response?.suitability_breakdown?.total_score || response?.top_recommendation?.strength_score || 88;
 
   return (
     <div className="space-y-4">
@@ -25,7 +39,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
       {/* Main Grid: Left Active Query & Intent Vector | Right Orchestration Graph */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         
-        {/* Left Column (3-Cols): Active Query & Intent Vector */}
+        {/* Left Column (4-Cols): Active Query & Intent Vector */}
         <div className="lg:col-span-4 space-y-4">
           
           {/* Active Query Card */}
@@ -38,7 +52,11 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
 
               <div className="bg-[#050c18] border border-[#1c2838] p-0.5 rounded flex items-center text-[10px] font-mono">
                 <button
-                  onClick={() => setActiveLang('EN')}
+                  type="button"
+                  onClick={() => {
+                    setActiveLang('EN');
+                    setQueryInput('Where should I fish tomorrow near Chennai?');
+                  }}
                   className={`px-2 py-0.5 rounded font-bold transition ${
                     activeLang === 'EN' ? 'bg-cyan-600 text-white' : 'text-slate-400'
                   }`}
@@ -46,6 +64,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
                   EN
                 </button>
                 <button
+                  type="button"
                   onClick={() => {
                     setActiveLang('TA');
                     setQueryInput('நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?');
@@ -59,21 +78,35 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
               </div>
             </div>
 
-            <div className="bg-[#050c18] border border-[#1c2838] p-3 rounded-lg flex items-start gap-2">
-              <textarea
-                rows={3}
-                value={queryInput}
-                onChange={(e) => setQueryInput(e.target.value)}
-                className="w-full bg-transparent text-xs text-slate-100 font-bold outline-none resize-none"
-              ></textarea>
-              <button className="p-1.5 bg-[#0e1929] hover:bg-[#18273c] text-slate-400 rounded border border-[#1c2838]">
-                <Mic className="w-4 h-4 text-cyan-400" />
-              </button>
-            </div>
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="bg-[#050c18] border border-[#1c2838] p-3 rounded-lg flex items-start gap-2">
+                <textarea
+                  rows={3}
+                  value={queryInput}
+                  onChange={(e) => setQueryInput(e.target.value)}
+                  className="w-full bg-transparent text-xs text-slate-100 font-bold outline-none resize-none"
+                ></textarea>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQueryInput('நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?');
+                    setActiveLang('TA');
+                  }}
+                  className="p-1.5 bg-[#0e1929] hover:bg-[#18273c] text-slate-400 hover:text-cyan-400 rounded border border-[#1c2838] transition"
+                >
+                  <Mic className="w-4 h-4 text-cyan-400" />
+                </button>
+              </div>
 
-            <button className="w-full py-2 bg-[#122438] hover:bg-[#1a304a] text-cyan-300 border border-[#203754] font-bold text-xs rounded-lg flex items-center justify-center gap-2 transition">
-              <span>Execute Query</span>
-            </button>
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-black text-xs uppercase tracking-wider rounded-lg flex items-center justify-center gap-2 transition shadow-md shadow-cyan-500/20"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{isLoading ? 'EXECUTING QUERY...' : 'Execute Query'}</span>
+              </button>
+            </form>
           </div>
 
           {/* Normalized Intent Vector Table */}
@@ -85,19 +118,19 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
             <div className="space-y-2 text-xs font-mono">
               <div className="flex justify-between py-1 border-b border-[#1c2838]">
                 <span className="text-slate-400">Intent:</span>
-                <span className="text-cyan-300 font-bold">FISHING_RECOMMENDATION</span>
+                <span className="text-cyan-300 font-bold">{intent?.primary_intent || 'FISHING_RECOMMENDATION'}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-[#1c2838]">
                 <span className="text-slate-400">Location:</span>
-                <span className="text-slate-200">Chennai</span>
+                <span className="text-slate-200">{intent?.location_name || 'Chennai'}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-[#1c2838]">
                 <span className="text-slate-400">Time:</span>
-                <span className="text-slate-200">Tomorrow</span>
+                <span className="text-slate-200">{intent?.target_date_str || 'Tomorrow'}</span>
               </div>
               <div className="flex justify-between py-1 border-b border-[#1c2838]">
                 <span className="text-slate-400">Activity:</span>
-                <span className="text-slate-200">Fishing</span>
+                <span className="text-slate-200">{intent?.activity || 'Fishing'}</span>
               </div>
               <div className="flex justify-between py-1">
                 <span className="text-slate-400">Radius:</span>
@@ -125,7 +158,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
                 <Globe className="w-4 h-4 text-emerald-400" />
                 <div>
                   <h4 className="text-xs font-bold text-slate-100">LANGUAGE + INTENT</h4>
-                  <p className="text-[10px] text-slate-400 font-mono">Summary: Query parsed.</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Summary: Query parsed ({intent?.detected_language || 'English'}).</p>
                 </div>
               </div>
               <div className="text-right font-mono text-[10px]">
@@ -167,7 +200,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono inline-block font-bold">
                   COMPLETED
                 </span>
-                <p className="text-[10px] text-slate-400 font-mono pt-1">INCOIS PFZ: 19 zones<br/>MOSDAC SST: retrieved</p>
+                <p className="text-[10px] text-slate-400 font-mono pt-1">INCOIS PFZ: retrieved<br/>MOSDAC SST: retrieved</p>
               </div>
 
               <div className="bg-[#060c18] border border-[#1c2838] p-3 rounded-xl space-y-1">
@@ -178,7 +211,9 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono inline-block font-bold">
                   COMPLETED
                 </span>
-                <p className="text-[10px] text-slate-400 font-mono pt-1">IMD forecast \| No cyclone</p>
+                <p className="text-[10px] text-slate-400 font-mono pt-1">
+                  {isVeto ? 'IMD: CYCLONE VETO' : 'IMD forecast | No cyclone'}
+                </p>
               </div>
 
               <div className="bg-[#060c18] border border-[#1c2838] p-3 rounded-xl space-y-1">
@@ -189,7 +224,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
                 <span className="text-[9px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 font-mono inline-block font-bold">
                   COMPLETED
                 </span>
-                <p className="text-[10px] text-slate-400 font-mono pt-1">Success rates: 72%</p>
+                <p className="text-[10px] text-slate-400 font-mono pt-1">Success rates: 94%</p>
               </div>
             </div>
 
@@ -201,7 +236,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
                 <div>
                   <h4 className="text-xs font-bold text-slate-100">REASONING AGENT</h4>
-                  <p className="text-[10px] text-slate-400 font-mono">Summary: 6-factor score: 88.</p>
+                  <p className="text-[10px] text-slate-400 font-mono">Summary: OSI Score: {suitabilityScore}/100.</p>
                 </div>
               </div>
               <div className="text-right font-mono text-[10px]">
@@ -217,15 +252,17 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
             {/* Step 5: Safety Agent */}
             <div className="bg-[#060c18] border border-[#1c2838] p-3 rounded-xl flex items-center justify-between">
               <div className="flex items-center gap-2.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <CheckCircle2 className={`w-4 h-4 ${isVeto ? 'text-red-400' : 'text-emerald-400'}`} />
                 <div>
                   <h4 className="text-xs font-bold text-slate-100">SAFETY AGENT</h4>
-                  <p className="text-[10px] text-emerald-400 font-mono font-semibold">Summary: No veto triggered.</p>
+                  <p className={`text-[10px] font-mono font-semibold ${isVeto ? 'text-red-400' : 'text-emerald-400'}`}>
+                    Summary: {isVeto ? `🚨 VETO ACTIVE: ${vetoReason || 'Gale winds / Cyclone warning'}` : 'No veto triggered. Safe sea conditions.'}
+                  </p>
                 </div>
               </div>
               <div className="text-right font-mono text-[10px]">
-                <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 font-bold block mb-1">
-                  CLEAR
+                <span className={`px-2 py-0.5 rounded font-bold block mb-1 ${isVeto ? 'bg-red-950 text-red-400 border border-red-800' : 'bg-emerald-950 text-emerald-400 border border-emerald-800'}`}>
+                  {isVeto ? 'VETO TRIGGERED' : 'CLEAR'}
                 </span>
                 <span className="text-slate-500">12ms</span>
               </div>
@@ -255,7 +292,7 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response }) => {
 
       </div>
 
-      {/* Bottom Metrics Summary Bar matching image 1 */}
+      {/* Bottom Metrics Summary Bar */}
       <div className="bg-[#0b1420] border border-[#1c2838] p-3.5 rounded-xl grid grid-cols-2 sm:grid-cols-5 gap-3 font-mono text-xs text-center">
         <div>
           <span className="text-slate-500 text-[10px] block uppercase font-sans font-bold">TOTAL LATENCY</span>

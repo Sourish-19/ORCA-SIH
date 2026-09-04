@@ -130,25 +130,43 @@ export const ORCASidebar: React.FC = () => {
       <div className="space-y-1 text-xs border-t border-outline-variant pt-3">
         <NavLink
           to="/demo-scenarios"
-          className="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:text-primary font-bold transition"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
+              isActive
+                ? 'bg-secondary-container text-white shadow-md'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`
+          }
         >
-          <PlaySquare className="w-4 h-4" />
+          <PlaySquare className="w-4 h-4 text-primary" />
           <span>DEMO SCENARIOS</span>
         </NavLink>
 
         <NavLink
           to="/alerts"
-          className="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:text-primary font-bold transition"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
+              isActive
+                ? 'bg-secondary-container text-white shadow-md'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`
+          }
         >
-          <HelpCircle className="w-4 h-4" />
+          <HelpCircle className="w-4 h-4 text-primary" />
           <span>SUPPORT</span>
         </NavLink>
 
         <NavLink
           to="/evidence-inspector"
-          className="flex items-center gap-3 px-3 py-2 text-on-surface-variant hover:text-primary font-bold transition"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded font-bold transition ${
+              isActive
+                ? 'bg-secondary-container text-white shadow-md'
+                : 'text-on-surface-variant hover:text-on-surface hover:bg-surface-container'
+            }`
+          }
         >
-          <FileText className="w-4 h-4" />
+          <FileText className="w-4 h-4 text-primary" />
           <span>LOGS</span>
         </NavLink>
       </div>
