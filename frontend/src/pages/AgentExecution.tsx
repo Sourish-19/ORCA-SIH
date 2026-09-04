@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Cpu, CheckCircle2, Circle, Mic, Send, Globe, AlertTriangle, ShieldCheck, Database, Layers, Radio, Activity, Eye, X, ChevronRight, RefreshCw } from 'lucide-react';
 import { ORCAResponse } from '../types';
+import { VoiceRecorder } from '../components/common/VoiceRecorder';
 
 interface AgentExecutionProps {
   response: ORCAResponse | null;
@@ -202,36 +203,16 @@ export const AgentExecution: React.FC<AgentExecutionProps> = ({ response, onQuer
               </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-3">
-              <div className="bg-[#050c18] border border-[#1c2838] p-3 rounded-lg flex items-start gap-2">
-                <textarea
-                  rows={3}
-                  value={queryInput}
-                  onChange={(e) => setQueryInput(e.target.value)}
-                  className="w-full bg-transparent text-xs text-slate-100 font-bold outline-none resize-none"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setQueryInput('நாளைக்கு சென்னைக்கு அருகில் எங்கு மீன் பிடிக்கலாம்?');
-                    setActiveLang('TA');
-                  }}
-                  className="p-1.5 bg-[#0e1929] hover:bg-[#18273c] text-slate-400 hover:text-cyan-400 rounded border border-[#1c2838] transition"
-                  title="Tamil Voice Input"
-                >
-                  <Mic className="w-4 h-4 text-cyan-400" />
-                </button>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isLoading}
-                className="w-full py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-50 text-slate-950 font-black text-xs uppercase tracking-wider rounded-lg flex items-center justify-center gap-2 transition shadow-md shadow-cyan-500/20"
-              >
-                {isLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                <span>{isLoading ? 'EXECUTING PIPELINE...' : 'Execute Query'}</span>
-              </button>
-            </form>
+            <VoiceRecorder
+              language={activeLang}
+              initialText={queryInput}
+              onTranscriptChange={(txt) => setQueryInput(txt)}
+              onSendQuery={(txt) => {
+                setQueryInput(txt);
+                setAnimStep(1);
+                if (onQuerySubmit) onQuerySubmit(txt);
+              }}
+            />
           </div>
 
           {/* Normalized Intent Vector Table */}
