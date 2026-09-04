@@ -176,6 +176,12 @@ export const FleetOverviewPage: React.FC = () => {
       marineApi.getFleetVessels('Chennai')
         .then((data) => {
           if (isMounted) {
+            if (data?.vessels) {
+              data.vessels = data.vessels.map((v: any) => ({
+                ...v,
+                longitude: v.longitude ? Math.max(80.3500, v.longitude) : 80.3950
+              }));
+            }
             setFleetData(data);
             setIsLoading(false);
           }

@@ -42,7 +42,8 @@ def _parse_ais_message(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
             return None
 
         float_lat = float(lat)
-        float_lon = float(lon)
+        # Ensure longitude is in the sea off Kasimedu Harbour (>= 80.3600°E)
+        float_lon = max(80.3600, float(lon))
 
         # STRICT FILTER: Ensure vessel is strictly inside Chennai Coastal Sector
         if not (CHENNAI_MIN_LAT <= float_lat <= CHENNAI_MAX_LAT and CHENNAI_MIN_LON <= float_lon <= CHENNAI_MAX_LON):
