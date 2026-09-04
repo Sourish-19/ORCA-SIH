@@ -29,6 +29,7 @@ DATA_MODE = os.getenv("ORCA_DATA_MODE", "DEMO")  # "LIVE", "FAILOVER", "DEMO"
 # Map Basemap & GIS API Keys
 MAPTILER_API_KEY = os.getenv("MAPTILER_API_KEY", "")
 CARTO_API_KEY = os.getenv("CARTO_API_KEY", "")
+AISSTREAM_API_KEY = os.getenv("AISSTREAM_API_KEY", "fde31f354a0d95fb01736aca62295a018a972423")
 
 # Safety Thresholds
 MAX_SAFE_WIND_KNOTS = float(os.getenv("MAX_SAFE_WIND_KNOTS", "25.0"))

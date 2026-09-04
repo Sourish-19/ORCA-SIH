@@ -664,9 +664,17 @@ def get_vessels_telemetry(
         }
     ]
 
+    try:
+        from app.ingestion.aisstream import get_live_ais_vessels
+        live_vessels = get_live_ais_vessels(limit=20)
+        if live_vessels:
+            vessels_data = live_vessels + vessels_data
+    except Exception:
+        pass
+
     return {
-        "active_count": 142,
-        "hazard_count": 12 if is_cyclone_veto else 1,
+        "active_count": max(142, len(vessels_data)),
+        "hazard_count": sum(1 for v in vessels_data if v.get("isHazard")) or (12 if is_cyclone_veto else 1),
         "sst_celsius": 28.4,
         "wave_height_m": 1.1 if not is_cyclone_veto else 3.2,
         "sector": sector_key.upper(),
