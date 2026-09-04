@@ -672,6 +672,14 @@ def get_vessels_telemetry(
     except Exception:
         pass
 
+    try:
+        from app.ingestion.gfw import search_gfw_vessels
+        gfw_vessels = search_gfw_vessels(query="India", limit=5)
+        if gfw_vessels:
+            vessels_data = gfw_vessels + vessels_data
+    except Exception:
+        pass
+
     return {
         "active_count": max(142, len(vessels_data)),
         "hazard_count": sum(1 for v in vessels_data if v.get("isHazard")) or (12 if is_cyclone_veto else 1),
